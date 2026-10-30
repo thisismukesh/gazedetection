@@ -188,3 +188,29 @@ def test_overlay_at_camera_view_size_is_legible_and_has_vectors() -> None:
     out = draw_overlay(small, scale_info(_info(_vec_track(), {3: 1}), 480 / 1280))
     assert out.shape == small.shape
     assert np.all(out == (255, 255, 0), axis=2).sum() > 5  # head arrow still visible
+
+
+def _box_lands_on_face(mirror: bool) -> bool:
+    """A bright 'face' patch at a known pixel spot; the drawn box must surround it on screen."""
+    img = np.zeros((720, 1280, 3), np.uint8)
+    img[300:400, 150:250] = 255  # the face, near the left edge of the raw camera image
+    track = DebugTrack(1, 0, 0.9, AttentionState.LOOKING, (150.0, 300.0, 250.0, 400.0))
+    info = replace_mirror(_info(track), mirror)
+    out = draw_overlay(img, info)
+    green = np.all(out == (80, 200, 80), axis=2)  # the LOOKING box colour
+    ys, xs = np.nonzero(green)
+    white = np.all(out == (255, 255, 255), axis=2)
+    wy, wx = np.nonzero(white)
+    return bool(
+        len(xs) and len(wx) and xs.min() <= wx.min() and xs.max() >= wx.max()
+        and ys.min() <= wy.min() and ys.max() >= wy.max()
+    )  # fmt: skip
+
+
+def test_box_surrounds_the_face_unmirrored() -> None:
+    assert _box_lands_on_face(mirror=False)
+
+
+def test_box_surrounds_the_face_when_mirrored() -> None:
+    """Regression: the image must be flipped together with the coordinates."""
+    assert _box_lands_on_face(mirror=True)

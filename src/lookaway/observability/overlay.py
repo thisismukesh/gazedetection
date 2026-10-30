@@ -52,6 +52,7 @@ def _text(
 ) -> None:
     """Text on a translucent dark box: legible on any background and at any size."""
     (tw, th), base = cv2.getTextSize(text, _FONT, fs, 1)
+    org = (max(3, min(org[0], out.shape[1] - tw - 4)), org[1])  # keep labels inside the frame
     x0, y0 = max(org[0] - 3, 0), max(org[1] - th - 3, 0)
     x1, y1 = min(org[0] + tw + 3, out.shape[1]), min(org[1] + base + 2, out.shape[0])
     if x1 > x0 and y1 > y0:
@@ -84,7 +85,8 @@ def _x(x: float, w: int, mirror: bool) -> int:
 
 
 def draw_overlay(image: NDArray[np.uint8], info: OverlayInfo) -> NDArray[np.uint8]:
-    out = image.copy()
+    # Mirror the picture itself, not just the coordinates, or every box lands on the wrong side.
+    out = np.ascontiguousarray(image[:, ::-1]) if info.mirror else image.copy()
     h, w = out.shape[:2]
     for b in info.boundaries:  # boundaries are fractions in the audience frame
         x_aud = b * w
