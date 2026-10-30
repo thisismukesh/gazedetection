@@ -1,0 +1,5 @@
+[privacy]
+mode = "development"
+
+[observability]
+log_level = "DEBUG"

@@ -1,0 +1,95 @@
+[capture]
+source = "webcam:0"            # webcam:<index> | video:<path> | replay:<path>
+width = 1280
+height = 720
+fps = 30
+hfov_deg = 70.0                # used only without a calibration file
+calibration_file = ""
+mirror_display = true          # overlay window only
+
+[zones]
+count = 3
+boundaries = [0.3333333, 0.6666667]
+margin_px = 24
+switch_s = 0.4
+
+[perception]
+backend = "mediapipe"
+model_path = "models/face_landmarker.task"
+max_faces = 6
+min_detection_confidence = 0.5
+min_presence_confidence = 0.5
+min_tracking_confidence = 0.5
+
+[tracking]
+iou_gate = 0.2
+high_conf = 0.6
+confirm_hits = 3
+max_coast_s = 1.0
+
+[attention]
+scorer = "geometric"
+ipd_m = 0.063
+k_yaw_deg = 55.0
+k_pitch_deg = 40.0
+eye_weight_iod_min_px = 15.0
+eye_weight_iod_full_px = 45.0
+cone_deg = 14.0
+softness_deg = 3.0
+blink_thresh = 0.5
+t_on = 0.65
+t_off = 0.35
+away_confirm_s = 0.25
+look_confirm_s = 0.30
+retrigger_cooldown_s = 1.0
+missing_as_away_s = 0.35
+track_timeout_s = 1.0
+trigger_on_first_seen_away = false
+max_triggers_per_min = 12
+
+[attention.one_euro]
+min_cutoff = 1.0
+beta = 0.05
+d_cutoff = 1.0
+
+[control]
+rate_hz = 100
+yaw_scale = 4.0
+pitch_scale = 2.0
+pitch_offset_deg = 0.0
+arrive_tol_deg = 2.0
+hold_s = 2.0
+min_hold_s = 0.8
+next_target_ttl_s = 1.5
+release_on_regain = true
+regain_release_s = 0.4
+idle_sway_deg = 2.0
+idle_sway_period_s = 6.0
+
+[control.target_one_euro]
+min_cutoff = 0.8
+beta = 0.02
+d_cutoff = 1.0
+
+[control.limits]
+yaw_deg = 60.0
+pitch_deg = 30.0
+vel_deg_s = 150.0
+acc_deg_s2 = 600.0
+
+[render]
+host = "127.0.0.1"
+port = 8765
+rate_hz = 60
+debug_rate_hz = 10
+allow_lan = false
+
+[observability]
+log_level = "INFO"
+overlay = false
+metrics_window_s = 10.0
+
+[privacy]
+mode = "installation"          # "development" enables consent-gated landmark recording
+allow_restricted_models = false
+restricted_license_ref = ""

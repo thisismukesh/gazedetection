@@ -1,0 +1,71 @@
+# 40 Test Plan
+
+## Levels
+
+| Level | Scope | Tools | Data | When |
+|---|---|---|---|---|
+| Unit | pure modules, geometry, config validation, import rules, privacy | pytest, `FakeClock` | synthetic | every commit |
+| Property | state machine I1 to I6, zones, motion limits, bearing round trips, score monotonicity | hypothesis | generated | every commit |
+| Contract | each `CameraSource`, `FacePerception`, `AttentionScorer`, `HeadDriver` | shared pytest suites | fakes | every commit |
+| Golden | landmark JSONL -> event JSON | pytest + `--update-golden` | `tests/fixtures/landmarks/*.jsonl` | every commit |
+| JS unit | `web/pose.js` | `node --test` | none | every commit |
+| Integration | full pipeline headless on video | `pytest -m integration` | consented clips + label sidecars (CI cache) | every PR |
+| Performance | p50/p95 per stage | `lookaway bench` | video fixture | nightly, self-hosted runner |
+| Manual | live webcam demo | checklist below | live | before each demo |
+
+## Fixtures
+
+**Synthetic observation generator** (`tests/fixtures/synth.py`). Builds `FaceObservation`s from: head yaw/pitch, eye yaw/pitch, image position, distance (sets `iod_px` via the intrinsics), blink values. Inverts the scorer's geometry so tests can request "25° eye yaw" directly. Used by scorer, state machine and pipeline tests.
+
+**Recorded landmark streams** (consented, landmarks only, development mode):
+- `single_look_away.jsonl`
+- `phone_glance_down.jsonl`
+- `blink_storm.jsonl`
+- `two_people.jsonl`
+- `boundary_walker.jsonl`
+- `profile_turn.jsonl` (face drops out of detection while turning)
+
+**Video clips** (consented, 20 s max, 720p, cached outside the repo), each with `<name>.labels.json`:
+
+```json
+[{"zone": 1, "onset_s": 4.2, "type": "look_away"},
+ {"zone": 1, "onset_s": 9.8, "type": "look_back"}]
+```
+
+Distance clips at 0.5, 1.0, 1.5, 2.0 m for AC-PER-04.
+
+## Golden policy
+
+Golden files change only with a spec change or an explained algorithm change. The PR states how many events were added, removed or shifted, and by how much.
+
+## CI
+
+GitHub Actions on Ubuntu:
+1. `uv sync --frozen`
+2. `ruff check`, `ruff format --check`, `pyright`
+3. `pytest -m "not integration and not manual"` with coverage gates (90% pure modules, 75% overall)
+4. `node --test web/`
+5. `pytest -m integration` with the model and clips restored from cache
+
+No camera, GPU or display in CI.
+
+## Threshold tuning study (M0)
+
+- 10 consented participants.
+- Distances 0.6, 1.0, 1.5 m (D2).
+- Scripted gazes: at camera, 10°, 20°, 30° off-camera horizontally, down at a phone, eyes-only glances with head still.
+- Sweep `cone_deg`, `k_yaw_deg`, `k_pitch_deg`, `t_on`, `t_off`, `away_confirm_s`.
+- Pick the operating point with at most 1 false trigger per minute and the highest detection rate for look-aways of 20° or more.
+- Record results in SPECS/60, update SPECS/18, add a decision in SPECS/03.
+
+## Manual demo checklist
+
+- [ ] Lighting is soft and frontal, no strong backlight
+- [ ] Heads display sits directly below or around the webcam
+- [ ] Three floor marks at about 1.2 m, one per zone
+- [ ] Overlay toggles with `D`
+- [ ] Each head turns toward its own zone's person, horizontally and vertically
+- [ ] A blink or quick glance does not trigger
+- [ ] A person in zone 0 never moves heads 1 or 2
+- [ ] Fallback `--source video:...` works
+- [ ] Privacy signage is up

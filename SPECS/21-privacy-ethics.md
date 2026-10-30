@@ -1,0 +1,10 @@
+# 21 Privacy and Ethics
+
+- **P1 On-device only.** No outbound network traffic. The WebSocket binds to 127.0.0.1 unless `render.allow_lan = true` (only for a separate display machine).
+- **P2 No persistence in installation mode.** No frames, crops, landmarks or embeddings are written anywhere. `tests/unit/test_privacy.py` runs the pipeline on replay and video sources with `open`, `cv2.imwrite` and `cv2.VideoWriter` monkeypatched, and fails on any write other than log output.
+- **P3 No identification.** No face recognition, re-identification, or demographic or emotion inference. Track IDs are ephemeral integers.
+- **P4 Signage.** `docs/signage.md` holds the visitor notice: a camera detects head and eye direction, processing is local, nothing is stored, plus a contact.
+- **P5 Consent for fixtures.** `tools/record_landmarks.py` runs only in development mode, requires `--consent-id`, stores landmarks only (never images), and writes outside the repo. Consent forms are kept by the project lead. Fixture videos for integration tests are recorded with written consent and cached, never committed.
+- **P6 Inclusion.** Gaze estimation can misfire for people with strabismus or low vision, or wearing dark or reflective glasses. Keep thresholds forgiving and acknowledge this in the artist statement.
+- **P7 Restricted licenses.** Models or weights with non-commercial terms (for example Gaze360-trained L2CS-Net, OpenFace 2.0, eye-contact-cnn) cannot load unless `privacy.allow_restricted_models = true`. In installation mode this also requires `privacy.restricted_license_ref`. Startup prints a license warning when any such model loads.
+- **P8 Legal review.** Biometric privacy laws (GDPR, Illinois BIPA and similar) can apply to face geometry. Get venue or legal sign-off before a public showing.
