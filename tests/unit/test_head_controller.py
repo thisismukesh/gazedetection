@@ -75,10 +75,11 @@ def test_AC_HEAD_06_release_affects_only_the_addressed_head() -> None:
     r.bus.publish(TrackUpdated(r.t, 7, 2, 0.0, 0.0, 0.1, AttentionState.AWAY))  # for head 2
     r.run(0.05)
     assert r.heads[1].mode is HeadMode.HOLD  # head 1 ignores head 2's copy
+    assert r.heads[2].mode in (HeadMode.ORIENT, HeadMode.HOLD)  # D16: its person is away
     r.bus.publish(TrackReleased(r.t, 7, 1))
     r.run(0.05)
     assert r.heads[1].mode is HeadMode.RETURN
-    assert r.heads[2].mode is HeadMode.IDLE
+    assert r.heads[2].mode in (HeadMode.ORIENT, HeadMode.HOLD)  # releasing head 1 leaves head 2
 
 
 def test_AC_HEAD_07_follows_moving_target() -> None:

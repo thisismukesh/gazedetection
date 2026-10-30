@@ -266,3 +266,35 @@ def test_release_clears_a_queued_target() -> None:
     r.p.on_event(GazeRegained(r.t, 7, 1))
     out = r.leave_hold()
     assert out.mode is HeadMode.RETURN
+
+
+def away_upd(t: float, track: int = 7, az: float = 0.2) -> TrackUpdated:
+    return TrackUpdated(t, track, 1, az, 0.0, 0.05, AttentionState.AWAY)
+
+
+def test_AC_HEAD_13_marked_away_starts_a_stare_without_gaze_lost() -> None:
+    r = Rig()
+    r.p.on_event(away_upd(r.t))
+    out = r.tick()
+    assert out.mode is HeadMode.ORIENT and out.target_track == 7 and out.az_rel_rad == 0.2
+
+
+def test_AC_HEAD_14_marked_looking_releases_after_the_delay() -> None:
+    r = Rig()
+    r.p.on_event(away_upd(r.t))
+    r.tick()
+    r.tick(arrived=True)  # HOLD
+    r.p.on_event(looking_upd(r.t))
+    assert r.run(P.regain_release_s - 0.1, arrived=True).mode is HeadMode.HOLD
+    assert r.leave_hold().mode is HeadMode.RETURN
+
+
+def test_AC_HEAD_14_away_again_cancels_the_release() -> None:
+    r = Rig()
+    r.p.on_event(away_upd(r.t))
+    r.tick()
+    r.tick(arrived=True)
+    r.p.on_event(looking_upd(r.t))
+    r.run(P.regain_release_s / 2, arrived=True)
+    r.p.on_event(away_upd(r.t))
+    assert r.run(P.regain_release_s, arrived=True).mode is HeadMode.HOLD

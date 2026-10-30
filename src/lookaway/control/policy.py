@@ -107,13 +107,24 @@ class HeadPolicy:
             self._mark_looked_at(e.t)
         if self._next is not None and e.track_id == self._next.track:
             self._next.az, self._next.el = e.az_rel_rad, e.el_rad
+        if e.state is AttentionState.AWAY and self._mode in (HeadMode.IDLE, HeadMode.RETURN):
+            self._orient(_Target(e.track_id, e.az_rel_rad, e.el_rad, e.t))  # D16: away = stare
+            return
         t = self._target
         if t is None or e.track_id != t.track or self._mode not in (HeadMode.ORIENT, HeadMode.HOLD):
             return
         if not t.lost:
             t.az, t.el = e.az_rel_rad, e.el_rad
-            if self._mode is HeadMode.HOLD and e.state is AttentionState.AWAY:
+        if e.state is AttentionState.AWAY:
+            self._release_at = None  # still away: keep staring
+            if self._mode is HeadMode.HOLD:
                 self._stare_t = e.t
+        elif (
+            e.state is AttentionState.LOOKING
+            and self._p.release_on_regain
+            and self._release_at is None
+        ):
+            self._release_at = e.t + self._p.regain_release_s  # D16: looking again = let go
 
     def _on_regained(self, e: GazeRegained) -> None:
         self._mark_looked_at(e.t)

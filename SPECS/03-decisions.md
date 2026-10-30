@@ -193,3 +193,18 @@ blink scenario. Blinks still pause the timer; hysteresis and the cooldown still 
 **Consequences.** More sensitive to brief glances and to landmark noise; the tuning study should
 confirm the false-trigger rate stays at or below one per minute (AC-SYS-01). NFR-PERF-04 tightens
 to 250 ms.
+
+## D16 Away means stare (2026-10-30)
+
+**Context.** Heads only reacted to the `GazeLost` transition event. A person could be marked away
+(red in the camera view) while the heads ignored them: first seen already looking away, a second
+look-away inside the cooldown or past the rate limit (no event by design), or a head that became
+free while the person was already away.
+
+**Decision.** Head behaviour follows the person's state, not only the transition event. A
+`TrackUpdated` with state AWAY for a head's own person starts a stare exactly like `GazeLost`, and
+keeps it going. A `TrackUpdated` with state LOOKING for the person being stared at releases the
+head after `regain_release_s`, like `GazeRegained`. Cooldown and rate limit now only limit how
+often `GazeLost` events are emitted and logged.
+
+**Consequences.** Whenever the camera view marks a person away, their head(s) stare at them.

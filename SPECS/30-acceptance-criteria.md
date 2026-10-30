@@ -82,6 +82,9 @@ Format: Given / When / Then. Test names use the ID, e.g. `test_AC_SM_03_blink_do
 - **AC-ASSIGN-08** `owners()` maps every head to the track that owns it (primary or follower) and omits free heads.
 - **AC-ASSIGN-07** Given one person who is looking away and a second person who then leaves, then the freed heads rejoin and each receives a `GazeLost` for the first person.
 - **AC-HEAD-12** (D15) Given an IDLE head, when `GazeLost` with a bearing that maps to 40 degrees of yaw arrives, then the head has moved at least 5 degrees within 0.1 s and is within 2 degrees of the target within 0.3 s.
+- **AC-HEAD-13** (D16) Given head 1 IDLE, when `TrackUpdated` for its person arrives with state AWAY and no `GazeLost` was sent, then head 1 enters ORIENT toward that person.
+- **AC-HEAD-14** (D16) Given head 1 staring at track 7, when `TrackUpdated` for track 7 shows LOOKING, then head 1 returns after `regain_release_s`; if an AWAY update arrives first, it keeps staring.
+- **AC-SYS-06** (D16) Given a person who is already looking away when first detected, and a person whose second look-away falls inside the cooldown, then in both cases their heads stare while they are marked away.
 - **AC-HEAD-11** (D14) Given a head staring at track 7, when `TrackReleased` for track 7 arrives, then the head goes to RETURN and does not wander on that person's behalf.
 
 ## Renderer

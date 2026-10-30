@@ -28,11 +28,11 @@ Inputs: events addressed to this head (`GazeAcquired`, `GazeLost`, `GazeRegained
 
 Rules:
 
-1. **Trigger.** `GazeLost` received in IDLE or RETURN starts ORIENT toward that track immediately.
+1. **Trigger.** `GazeLost` received in IDLE or RETURN starts ORIENT toward that track immediately. So does a `TrackUpdated` with state AWAY (D16): a head stares at its person whenever they are marked away, even when no `GazeLost` was emitted (first seen away, cooldown, rate limit, late join).
 2. **Same target again.** `GazeLost` for the current target restarts the hold timer and stays on that target.
 3. **Preemption.** `GazeLost` for a different track during ORIENT or HOLD: if in HOLD for at least `min_hold_s`, switch to the new track (ORIENT). Otherwise store it as `next_target` (latest wins). (With the assigner a head serves one person at a time, so this only happens across a release.)
 4. **Queued target.** On entering RETURN, if `next_target` exists, is not lost and is younger than `next_target_ttl_s`, go to ORIENT toward it. Otherwise discard it.
-5. **Regain.** If `release_on_regain` and the target emits `GazeRegained`, go to RETURN after `regain_release_s`.
+5. **Regain.** If `release_on_regain` and the target emits `GazeRegained`, or a `TrackUpdated` for the target shows state LOOKING (D16), go to RETURN after `regain_release_s`. A later `TrackUpdated` with state AWAY cancels the pending release.
 6. **Following.** While in ORIENT or HOLD, `TrackUpdated` for the target updates its bearing, so the head follows the person wherever they walk, across zones (D6). A head stops following only through rules 5, 7, 8 or HOLD expiry.
 7. **Target lost.** On `TrackLost` for the target, freeze the target pose at the last bearing. Continue to HOLD expiry, then RETURN.
 8. **Release (D14).** `TrackReleased` for the head's current target sends it to RETURN, clears its queued target and stops it wandering on that person's behalf.
