@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
+from typing import Any
 
 import pytest
 from tests.fixtures.replay_runner import golden_view, run_replay
@@ -15,11 +17,28 @@ LANDMARKS = Path(__file__).resolve().parents[1] / "fixtures" / "landmarks"
 EXPECTED = Path(__file__).parent / "expected"
 
 
+def _close(a: Any, b: Any) -> bool:
+    """Structural equality with a float tolerance (libm last digits differ across platforms)."""
+    if isinstance(a, float) and isinstance(b, float):
+        return math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-9)
+    if isinstance(a, list) and isinstance(b, list):
+        lst_a, lst_b = a, b
+        return len(lst_a) == len(lst_b) and all(
+            _close(x, y) for x, y in zip(lst_a, lst_b, strict=True)
+        )
+    if isinstance(a, dict) and isinstance(b, dict):
+        return a.keys() == b.keys() and all(_close(a[k], b[k]) for k in a)
+    return bool(a == b)
+
+
 @pytest.mark.parametrize("name", sorted(SCENARIOS))
 def test_fixture_matches_generator(name: str, tmp_path: Path) -> None:
     fresh = tmp_path / f"{name}.jsonl"
     write_jsonl(fresh, SCENARIOS[name]())
-    assert fresh.read_bytes() == (LANDMARKS / f"{name}.jsonl").read_bytes()
+    new = [json.loads(x) for x in fresh.read_text().splitlines()]
+    old = [json.loads(x) for x in (LANDMARKS / f"{name}.jsonl").read_text().splitlines()]
+    same = _close(new, old)  # keep the failure message small: never diff huge payloads
+    assert same, f"{name}.jsonl is stale: run `uv run python -m tests.fixtures.scenarios`"
 
 
 @pytest.mark.parametrize("name", sorted(SCENARIOS))
