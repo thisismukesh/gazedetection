@@ -158,10 +158,11 @@ class HeadCommand:
     pitch_rad: float  # + up
 
 
-class HeadAssigner:                        # pure; SPECS/16 Assignment, D6, D14
+class HeadAssigner:  # pure; SPECS/16 Assignment, D6, D14
     def on_event(self, e: Event) -> list[Event]: ...  # person events in, head-addressed copies out
     def head_of(self, track_id: int) -> int | None: ...  # primary head
     def heads_of(self, track_id: int) -> list[int]: ...  # primary + followers (lone person)
+
 
 class HeadDriver(Protocol):
     def send(self, cmd: HeadCommand) -> None: ...
