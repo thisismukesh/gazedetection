@@ -14,6 +14,7 @@
 - **Q4** Actuators for the physical piece: hobby servos through a microcontroller, smart servos on a bus, or the lab's ROS 2 stack? Affects M4.
 - **Q5** Exact overlap ownership rule for the three-camera rig (proposed: closest optical axis, with hysteresis). Cameras sit on a triangle, not one point, so there are near-field blind wedges between them.
 - **Q6** Camera height and pitch range for children and wheelchair users.
+- **Q8** With defaults, a track queued during HOLD is older than `next_target_ttl_s` (1.5 s) by the time `hold_s` (2.0 s) ends, so the queue only helps after an early release (regain). Should the TTL be measured from the last `TrackUpdated` instead of from `GazeLost`?
 - **Q7** Should a head ever turn toward someone outside its own zone when its zone is empty? D3 currently says no.
 
 ## Measurements to record (M0)

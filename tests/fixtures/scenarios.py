@@ -21,12 +21,14 @@ def _person(t: float, x: float, away: bool, dist: float = 1.2) -> FaceObservatio
     return make_obs(t=t, x_px=x, distance_m=dist, **kw)
 
 
-def single_look_away(seconds: float = 8.0, away: tuple[float, float] = (3.0, 5.0)) -> list[Record]:
+def single_look_away(
+    seconds: float = 8.0, away: tuple[float, float] = (3.0, 5.0), x_px: float = 640.0
+) -> list[Record]:
     """One person at the frame centre looks at the camera, away for a while, then back."""
     out: list[Record] = []
     for i in range(round(seconds * FPS)):
         t = i / FPS
-        out.append((i, t, [_person(t, 640.0, away[0] <= t < away[1])]))
+        out.append((i, t, [_person(t, x_px, away[0] <= t < away[1])]))
     return out
 
 

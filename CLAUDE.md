@@ -20,7 +20,7 @@ Do not change these without a spec change approved by the project lead.
 
 ## 2. Repo state
 
-M1 is in progress. Done: scaffold, config, core types and events, state machine, scorer, tracker, capture, replay, sector zone map, pipeline, `lookaway replay`. Not started: MediaPipe perception, head controller and drivers, WebSocket bridge, `web/`, `run`/`bench`/`fetch-models`. See the status table in `README.md`.
+M1 is implemented: capture, MediaPipe perception, tracking, zones, attention, head control, WebSocket bridge, Three.js heads, `run`/`replay`/`fetch-models`. Open: AC-PER-05 live confirmation (`tools/check_orientation.py`), debug overlay, metrics, `bench`, golden and integration clips, GLB heads (M2/M3). See the status table in `README.md`.
 
 ## 3. Source of truth
 

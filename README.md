@@ -14,28 +14,23 @@ perception, attention or control logic.
 
 ## Status
 
-Milestone **M1 (walking skeleton)** is in progress. Behaviour is defined in [`SPECS/`](SPECS/);
+Milestone **M1 (walking skeleton)** is implemented. Behaviour is defined in [`SPECS/`](SPECS/);
 progress against acceptance criteria is tracked in [`SPECS/50-roadmap.md`](SPECS/50-roadmap.md).
 
 | Area | State |
 |---|---|
-| Config (TOML, pydantic, spec-matching guardrail) | done |
-| Clock, types, event bus | done |
+| Config, clock, types, event bus | done |
 | 1-euro filter, attention state machine (AC-SM-01..09, I1..I6) | done |
 | Geometric attention scorer (AC-ATT-01..07) | done |
 | IoU/Hungarian tracker (AC-TRK-01..04) | done |
-| Capture: video file, replay, read supervisor (AC-CAP-01..04) | done. AC-CAP-03 reads "0.5, 1, 2, 5 s" as delays between retries (attempts at 0.5, 1.5, 3.5, 8.5 s); needs project-lead confirmation |
-| Webcam source | written, needs a live camera to verify |
-| Sector zone map with hysteresis (AC-ZONE-01..04, ownership half of 05) | done (planned for M2, needed by the pipeline) |
-| Pipeline + replay determinism (AC-SYS-04) | done |
-| Privacy test (no file writes) | done for replay and video sources |
-| `web/pose.js` mapping (AC-REN-03) | done |
-| MediaPipe Face Landmarker perception, `fetch-models` | not started |
-| Head controller (targeting, motion, policy), drivers | not started |
-| WebSocket bridge and Three.js heads (`web/`) | not started |
-| `lookaway run`, `bench`, debug overlay | not started |
-
-The pipeline currently runs on recorded or synthetic landmark streams, with no camera or model.
+| Capture: webcam, video file, replay, read supervisor (AC-CAP-01..04) | done. AC-CAP-03 reads "0.5, 1, 2, 5 s" as delays between retries (attempts at 0.5, 1.5, 3.5, 8.5 s); needs project-lead confirmation |
+| MediaPipe Face Landmarker perception, `fetch-models` (SHA-256 pinned) | done; webcam run verified on a MacBook (30 fps, face on every frame) |
+| Sector zone map with hysteresis (AC-ZONE-01..05) | done |
+| Head controller: targeting, motion limits, policy (AC-HEAD-01..08), drivers (simulated, recording, serial stub) | done |
+| WebSocket bridge + Three.js heads (AC-REN-01..03) | done; three procedural heads render in Chrome |
+| `lookaway run` / `replay` / `fetch-models`, whole-app replay test | done |
+| AC-PER-05 axis and wink-side check against a real face | **pending**: run `tools/check_orientation.py` (guided, 20 s) |
+| Debug overlay, metrics, `bench`, golden and integration clips, GLB heads | not started (M2/M3) |
 
 ## Quick start
 
@@ -43,16 +38,20 @@ Requires [uv](https://docs.astral.sh/uv/). The project pins Python 3.12.
 
 ```bash
 uv sync
-uv run lookaway replay tests/fixtures/landmarks/two_people.jsonl
+uv run lookaway fetch-models        # one-time model download, SHA-256 checked
+uv run lookaway run                 # webcam 0, opens the heads in your browser
+uv run lookaway run --source webcam:1                           # pick another camera
+uv run lookaway run --source replay:tests/fixtures/landmarks/two_people.jsonl   # no camera
+uv run lookaway replay tests/fixtures/landmarks/two_people.jsonl   # print events only
 ```
 
-Example output (one person in the audience's right zone looks away at 3.4 s and back at 6.4 s):
+**macOS:** the first webcam run asks for camera access for your terminal app. If it is denied,
+enable it in System Settings > Privacy & Security > Camera. If index 0 is your iPhone (Continuity
+Camera), use `--source webcam:1`. Frames are processed in memory and never stored.
 
-```
-   0.367  GazeAcquired  GazeAcquired(t=0.367, track_id=2, zone_id=2)
-   3.367  GazeLost      GazeLost(t=3.367, track_id=2, zone_id=2, ...)
-   6.433  GazeRegained  GazeRegained(t=6.433, track_id=2, zone_id=2)
-```
+Stand 0.5 m to 2 m from the laptop. Look at the screen, then look away: the head for your zone
+(left, middle or right third of the camera view, as the audience sees it) turns toward you.
+Place the heads display close under the webcam so the direction reads correctly.
 
 ## Development
 
@@ -62,6 +61,7 @@ uv run pytest --cov=lookaway                   # with coverage
 uv run ruff check . && uv run ruff format --check .
 uv run pyright                                 # strict on src/
 uv run python -m tests.fixtures.scenarios      # regenerate synthetic landmark fixtures
+uv run python tools/check_orientation.py       # guided webcam check of head axes (AC-PER-05)
 node --test "web/*.test.js"                    # JS pose mapping tests
 ```
 
@@ -91,7 +91,7 @@ src/lookaway/   capture/ perception/ tracking/ zones/ attention/ control/ render
 SPECS/          behaviour specs and acceptance criteria (source of truth)
 config/         default.toml (mirrors SPECS/18), demo.toml, dev.toml
 tests/          unit/ property/ contract/ golden/ integration/ fixtures/
-web/            Three.js renderer (not started)
+web/            Three.js renderer (vendored Three.js r160, MIT)
 ```
 
 ## Privacy

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import cast
 
 import cv2
@@ -34,9 +35,14 @@ class WebcamSource:
 
     def open(self) -> None:
         idx, w, h, fps = self._req
-        cap = cv2.VideoCapture(idx)
+        backend = cv2.CAP_AVFOUNDATION if sys.platform == "darwin" else cv2.CAP_ANY
+        cap = cv2.VideoCapture(idx, backend)
         if not cap.isOpened():
-            raise SourceError(f"cannot open webcam {idx}")
+            raise SourceError(
+                f"cannot open webcam {idx}. On macOS, allow camera access for your terminal in "
+                "System Settings > Privacy & Security > Camera; if index 0 is an iPhone "
+                "(Continuity Camera), try webcam:1."
+            )
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
         cap.set(cv2.CAP_PROP_FPS, fps)

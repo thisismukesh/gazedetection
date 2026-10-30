@@ -19,5 +19,5 @@ def test_replay_prints_gaze_events(tmp_path: Path, capsys: pytest.CaptureFixture
 
 
 def test_unimplemented_commands_exit_nonzero(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["run"]) == 2
+    assert main(["bench"]) == 2
     assert "not implemented" in capsys.readouterr().err
