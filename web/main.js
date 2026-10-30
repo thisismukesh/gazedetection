@@ -87,6 +87,59 @@ const heads = HEAD_X.map((x) => (template ? makeGlbHead(x, template) : makeHead(
 const target = HEAD_X.map(() => ({ yaw: 0, pitch: SLEEP_PITCH }));
 const current = HEAD_X.map(() => ({ yaw: 0, pitch: SLEEP_PITCH, vy: 0, vp: 0 }));
 
+// Emoji mask worn on the face while the head's person looks away (D17).
+const MASK_POP_S = 0.12; // pop-in / pop-out time
+const maskTextures = new Map();
+function emojiTexture(emoji) {
+  if (!maskTextures.has(emoji)) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 256;
+    const g = c.getContext("2d");
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.font = '200px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+    g.fillText(emoji, 128, 140);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    maskTextures.set(emoji, tex);
+  }
+  return maskTextures.get(emoji);
+}
+const masks = heads.map((head) => {
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.75, 1.75),
+    new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false })
+  );
+  mesh.position.set(0, 0.05, 0.95); // just in front of the face
+  mesh.scale.setScalar(0.001);
+  mesh.visible = false;
+  head.add(mesh);
+  return { mesh, emoji: null, scale: 0 };
+});
+function setMasks(list) {
+  for (const h of list) {
+    const m = masks[h.id];
+    if (!m) continue;
+    const emoji = h.mask ?? null;
+    if (emoji && emoji !== m.emoji) {
+      m.mesh.material.map = emojiTexture(emoji);
+      m.mesh.material.needsUpdate = true;
+      m.scale = Math.min(m.scale, 0.6); // a fresh mask pops in again
+    }
+    m.emoji = emoji;
+  }
+}
+function animateMasks(dt) {
+  for (const m of masks) {
+    const goal = m.emoji ? 1 : 0;
+    const step = dt / MASK_POP_S;
+    m.scale = goal > m.scale ? Math.min(goal, m.scale + step) : Math.max(goal, m.scale - step);
+    m.mesh.visible = m.scale > 0.01;
+    const s = m.scale * (1 + 0.12 * Math.sin(m.scale * Math.PI)); // slight overshoot
+    m.mesh.scale.setScalar(Math.max(s, 0.001));
+  }
+}
+
 // Indicator under each head: which face (#N, as in the camera view) it is looking at.
 const TAG_ANCHOR_Y = -1.9; // just below the neck, in scene units
 const tags = HEAD_X.map(() => {
@@ -191,6 +244,7 @@ function connect() {
     } else if (msg.type === "head_state") {
       setTargets(msg.heads);
       setIndicators(msg.heads);
+      setMasks(msg.heads);
       setStatus(msg.heads.map((h) => `${h.id}:${h.mode}`).join("  "));
     }
   };
@@ -201,6 +255,7 @@ function connect() {
       t.pitch = SLEEP_PITCH;
     }
     setIndicators(HEAD_X.map((_, id) => ({ id, mode: "idle", target_track: null, person: null })));
+    setMasks(HEAD_X.map((_, id) => ({ id, mask: null })));
     setStatus("disconnected, retrying…");
     setTimeout(connect, backoff * 1000);
     backoff = Math.min(backoff * 2, 5);
@@ -231,6 +286,7 @@ function frame(now) {
     [c.pitch, c.vp] = smoothDamp(c.pitch, target[i].pitch, c.vp, dt);
     applyPose(head.rotation, c.yaw, c.pitch);
   });
+  animateMasks(dt);
   renderer.render(scene, camera);
   placeIndicators();
   requestAnimationFrame(frame);

@@ -14,7 +14,7 @@ from lookaway.perception.replay import write_jsonl
 from tests.fixtures import scenarios
 
 
-async def test_a_lone_person_looking_away_is_stared_at_by_all_three_heads(
+async def test_AC_MASK_05_a_lone_person_looking_away_masks_all_three_heads(
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "s.jsonl"
@@ -29,7 +29,8 @@ async def test_a_lone_person_looking_away_is_stared_at_by_all_three_heads(
             break
         await asyncio.sleep(0.05)
     assert port
-    staring: set[int] = set()
+    staring: set[int] = set()  # heads seen wearing a mask
+    masked_yaw = [1.0, 1.0, 1.0]
     max_yaw = [0.0, 0.0, 0.0]
     try:
         async with connect(f"ws://127.0.0.1:{port[0]}/") as ws:
@@ -47,16 +48,17 @@ async def test_a_lone_person_looking_away_is_stared_at_by_all_three_heads(
                         continue
                     for h in msg["heads"]:
                         max_yaw[h["id"]] = max(max_yaw[h["id"]], abs(h["yaw"]))
-                        if h["target_track"] is not None and h["mode"] in ("orient", "hold"):
+                        if h["mode"] == "mask" and h["mask"]:
                             staring.add(h["id"])
+                            masked_yaw[h["id"]] = abs(h["yaw"])
     finally:
         stop.set()
         await asyncio.wait_for(task, 5.0)
     assert staring == {0, 1, 2}
-    assert max(max_yaw) > 0.3  # they really turned
+    assert max(masked_yaw) < 0.05  # masked heads face the audience (D17)
 
 
-async def test_two_people_one_zone_each_get_a_head_looker_stared_at(tmp_path: Path) -> None:
+async def test_two_people_one_zone_only_the_lookers_head_is_masked(tmp_path: Path) -> None:
     path = tmp_path / "two.jsonl"
     write_jsonl(path, scenarios.two_in_one_zone(seconds=9.0))
     cfg = load_config(source=f"replay:{path}")
@@ -84,12 +86,12 @@ async def test_two_people_one_zone_each_get_a_head_looker_stared_at(tmp_path: Pa
                     for h in msg["heads"]:
                         span[h["id"]][0] = min(span[h["id"]][0], h["yaw"])
                         span[h["id"]][1] = max(span[h["id"]][1], h["yaw"])
-                        if h["mode"] in ("orient", "hold"):
+                        if h["mode"] == "mask":
                             orient.add(h["id"])
     finally:
         stop.set()
         await asyncio.wait_for(task, 5.0)
-    assert len(orient) == 1  # only the person who looked away is stared at, by one head
+    assert len(orient) == 1  # only the person who looked away gets a masked head
     assert len([i for i in range(3) if max(abs(x) for x in span[i]) >= 0.06]) >= 2  # both people
 
 

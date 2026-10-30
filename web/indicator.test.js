@@ -44,3 +44,10 @@ test("live direction is appended as the audience sees it", () => {
   const centred = indicator({ mode: "hold", target_track: 2, person: 2, yaw: 0.03 });
   assert.equal(centred.text, "staring at #2");
 });
+
+test("AC-MASK masked head says who looked away", () => {
+  const r = indicator({ mode: "mask", target_track: 3, person: 3, mask: "😜", yaw: 0 });
+  assert.equal(r.text, "masked · #3 looked away");
+  assert.equal(r.kind, "masked");
+  assert.equal(r.person, 3);
+});

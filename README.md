@@ -14,14 +14,16 @@ perception, attention or control logic.
 
 ## What it does
 
-- A person looking at the piece: their head **wanders**, glancing around at random.
-- The moment they look away (blinks and quick glances are ignored): their head **turns to them
-  and stares**, following them for as long as they look away, then lingers briefly or releases as
-  soon as they look back.
-- **One person:** all three heads are theirs. They all glance around while you look, and all
-  three snap round and stare the moment you look away.
-- **Several people:** each person gets their own head (preferring the head for their third of the
-  view, otherwise the nearest free head). A fourth person waits until a head frees up.
+- **While you look at the piece,** your head(s) glance around at random.
+- **The moment you look away,** your head(s) face forward and put on a random emoji mask
+  (😜 😱 🤪 🥸 ...), a new one each time. The mask comes off about half a second after you look back.
+- **One person:** all three heads are yours: all three glance around, all three mask up.
+- **Two or three people:** each person gets their own head.
+- **More than three:** extra people wait. A head that has worn its mask for 2 s moves on to the
+  waiting person whose gaze was captured most recently (never to someone another head holds).
+- Under each head, a live label says who it belongs to and what it is doing
+  ("glancing · watched by #2 · 18° left", "masked · #2 looked away").
+- The old turn-and-stare behaviour is still there for the physical rig: `control.behaviour = "stare"`.
 - **Posters and masks** are ignored: a face has to blink or move before it counts.
 
 ## Status
@@ -32,7 +34,7 @@ Milestones M1 to M3 are implemented. Behaviour is defined in [`SPECS/`](SPECS/).
 |---|---|
 | Capture (webcam, video, replay, supervised retries), MediaPipe perception, pinned model | done; webcam verified on a MacBook (about 30 fps, face on every frame) |
 | Tracking, zones, attention scoring and state machine | done; head axes, iris pairing and blink handling verified against live data |
-| Head assignment (D6), lone person gets all heads (D14), wander and stare (D7), motion limits, drivers (simulated, recording, serial stub) | done |
+| Head assignment (D6), lone person gets all heads (D14), wander (D7), emoji masks and rotation for crowds (D17), turn-and-stare option, motion limits, drivers | done |
 | WebSocket bridge, Three.js heads, optional GLB mannequin heads | done; verified in Chrome |
 | Camera view in the page (head and gaze vectors, scores, assigned head); static-face rejection (D12); eye term from eyeball geometry (D13) | done; verified in Chrome. Eye-term signs are checked synthetically, not yet against a live face |
 | Debug overlay (D toggles, Q quits), metrics, `debug` stream, dev event journal, log scrubbing | done |

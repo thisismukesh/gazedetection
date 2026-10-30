@@ -59,11 +59,11 @@ def test_AC_ASSIGN_03_three_in_one_zone_then_fourth_waits() -> None:
         a.on_event(upd(t, 1))
     assert sorted(a.head_of(t) for t in (1, 2, 3)) == [0, 1, 2]
     assert a.on_event(upd(4, 1)) == [] and a.head_of(4) is None
+    freed = a.head_of(2)
     out = a.on_event(TrackLost(0.0, 2, 1))
-    assert [type(e) for e in out] == [TrackLost]
-    assert a.head_of(2) is None
-    assert heads(a.on_event(upd(4, 1)), TrackUpdated) == [a.head_of(4)]
-    assert a.head_of(4) is not None
+    assert [type(e) for e in out] == [TrackLost, GazeAcquired]  # AC-ASSIGN-11: handed straight on
+    assert a.head_of(2) is None and a.head_of(4) == freed
+    assert heads(a.on_event(upd(4, 1)), TrackUpdated) == [freed]
 
 
 def test_AC_ASSIGN_04_pairing_survives_zone_change() -> None:
@@ -131,3 +131,68 @@ def test_AC_ASSIGN_08_owners_maps_heads_to_tracks() -> None:
     assert a.owners() == {0: 5, 1: 5, 2: 5}  # a lone person owns every head
     a.on_event(upd(6, 2))
     assert a.owners() == {1: 5, 2: 6}  # head 0 is free again
+
+
+# --- D17: waiting people and rotation ------------------------------------------------------
+
+
+def acquired(track: int, zone: int, t: float) -> GazeAcquired:
+    return GazeAcquired(t, track, zone)
+
+
+def four_people(rotate_after_s: float = 2.0) -> HeadAssigner:
+    a = HeadAssigner(CENTRES, rotate_after_s=rotate_after_s)
+    for tid in (1, 2, 3):
+        a.on_event(acquired(tid, 1, 0.0))
+    a.on_event(acquired(4, 1, 0.5))  # waits: no head free
+    assert a.head_of(4) is None
+    return a
+
+
+def test_AC_ASSIGN_09_masked_head_moves_on_to_a_waiting_looker() -> None:
+    a = four_people()
+    head1 = a.head_of(1)
+    a.on_event(upd(1, 1, t=1.0, away=True))
+    a.on_event(upd(4, 1, t=1.0))
+    assert a.head_of(4) is None  # not away long enough yet
+    out = a.on_event(upd(1, 1, t=3.1, away=True))  # 2.1 s away: this event triggers it
+    out += a.on_event(upd(4, 1, t=3.1))
+    assert a.head_of(4) == head1 and a.head_of(1) is None
+    assert any(isinstance(e, TrackReleased) and e.track_id == 1 for e in out)
+
+
+def test_AC_ASSIGN_10_latest_gaze_capture_wins_and_non_lookers_never() -> None:
+    a = HeadAssigner(CENTRES, rotate_after_s=2.0)
+    for tid in (1, 2, 3):
+        a.on_event(acquired(tid, 1, 0.0))
+    a.on_event(acquired(4, 1, 0.5))
+    a.on_event(acquired(5, 1, 0.9))  # latest capture
+    a.on_event(acquired(6, 1, 1.2))  # even later, but will be looking away
+    a.on_event(upd(6, 1, t=1.3, away=True))
+    a.on_event(upd(1, 1, t=1.0, away=True))
+    a.on_event(upd(4, 1, t=3.2))
+    a.on_event(upd(5, 1, t=3.2))
+    a.on_event(upd(1, 1, t=3.2, away=True))
+    assert a.head_of(5) is not None and a.head_of(4) is None and a.head_of(6) is None
+
+
+def test_AC_ASSIGN_11_freed_head_goes_to_latest_waiting_looker() -> None:
+    a = four_people()
+    a.on_event(acquired(5, 1, 0.8))
+    a.on_event(upd(4, 1, t=1.0))
+    a.on_event(upd(5, 1, t=1.0))
+    head2 = a.head_of(2)
+    a.on_event(TrackLost(1.1, 2, 1))
+    assert a.head_of(5) == head2 and a.head_of(4) is None
+
+
+def test_rotation_never_takes_a_person_another_head_holds() -> None:
+    a = four_people()
+    a.on_event(upd(1, 1, t=1.0, away=True))
+    a.on_event(upd(2, 1, t=1.0, away=True))
+    a.on_event(upd(4, 1, t=3.5))
+    a.on_event(upd(1, 1, t=3.5, away=True))
+    a.on_event(upd(2, 1, t=3.5, away=True))
+    owners = a.owners()
+    assert len(set(owners.values())) == len(owners)  # one person per head
+    assert sum(1 for t in owners.values() if t == 4) == 1

@@ -85,6 +85,14 @@ Format: Given / When / Then. Test names use the ID, e.g. `test_AC_SM_03_blink_do
 - **AC-HEAD-13** (D16) Given head 1 IDLE, when `TrackUpdated` for its person arrives with state AWAY and no `GazeLost` was sent, then head 1 enters ORIENT toward that person.
 - **AC-HEAD-14** (D16) Given head 1 staring at track 7, when `TrackUpdated` for track 7 shows LOOKING, then head 1 returns after `regain_release_s`; if an AWAY update arrives first, it keeps staring.
 - **AC-SYS-06** (D16) Given a person who is already looking away when first detected, and a person whose second look-away falls inside the cooldown, then in both cases their heads stare while they are marked away.
+- **AC-MASK-01** (D17) Given `behaviour = "mask"` and head 1 IDLE, when its person is marked away (`GazeLost` or an AWAY `TrackUpdated`), then head 1 enters MASK, its output carries an emoji from `mask_emojis`, and its commanded pose goes to (0, 0).
+- **AC-MASK-02** Given head 1 masked, when its person looks back (LOOKING), then the mask comes off after `max(regain_release_s, mask_min_s since the mask started)` and the head wanders again.
+- **AC-MASK-03** Given head 1 masked, when its person stays away, then the same emoji stays on; a later new look-away picks a new random emoji.
+- **AC-MASK-04** Given head 1 masked, when `TrackReleased` arrives for its person, then the mask comes off at once.
+- **AC-MASK-05** Given one person who looks away, then all three heads are masked; given three people where one looks away, only that person's head is masked.
+- **AC-ASSIGN-09** (D17) Given four people with heads held by the first three, when person 1 has been AWAY for `rotate_after_s` and person 4 is LOOKING, then person 1's head is released and given to person 4.
+- **AC-ASSIGN-10** Given several waiting people who are LOOKING, then a rotating head picks the one with the latest gaze capture; a waiting person who is not looking is never picked.
+- **AC-ASSIGN-11** Given a head freed by `TrackLost` while people wait, then it is given to the LOOKING waiting person with the latest gaze capture.
 - **AC-HEAD-11** (D14) Given a head staring at track 7, when `TrackReleased` for track 7 arrives, then the head goes to RETURN and does not wander on that person's behalf.
 
 ## Renderer

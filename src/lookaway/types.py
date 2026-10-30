@@ -131,6 +131,7 @@ class HeadMode(Enum):
     ORIENT = auto()
     HOLD = auto()
     RETURN = auto()
+    MASK = auto()  # D17: facing forward, wearing an emoji mask
 
 
 @dataclass(frozen=True, slots=True)

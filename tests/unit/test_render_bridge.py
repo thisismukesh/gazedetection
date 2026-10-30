@@ -107,3 +107,14 @@ async def test_AC_REN_06_head_state_carries_the_assigned_person(bridge: RenderBr
         heads = {h["id"]: h for h in msg["heads"]}
         assert heads[1]["person"] == 7 and heads[1]["target_track"] == 7
         assert heads[0]["person"] is None and heads[2]["person"] is None
+
+
+async def test_head_state_carries_the_mask(bridge: RenderBridge) -> None:
+    bus = EventBus()
+    bridge.attach(bus)
+    bus.publish(HeadModeChanged(0.0, 2, HeadMode.MASK, 5, "😜"))
+    async with connect(f"ws://127.0.0.1:{bridge.port}/") as ws:
+        await ws.recv()
+        heads = {h["id"]: h for h in json.loads(await ws.recv())["heads"]}
+        assert heads[2]["mode"] == "mask" and heads[2]["mask"] == "😜"
+        assert heads[0]["mask"] is None

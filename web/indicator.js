@@ -20,6 +20,9 @@ function direction(yaw) {
 function describe(head) {
   const target = head.target_track ?? null;
   const person = head.person ?? null;
+  if (head.mode === "mask" && target !== null) {
+    return { text: `masked · #${target} looked away`, kind: "masked", person: target };
+  }
   if ((head.mode === "orient" || head.mode === "hold") && target !== null) {
     return { text: `staring at #${target}`, kind: "staring", person: target };
   }

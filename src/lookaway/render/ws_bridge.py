@@ -63,7 +63,7 @@ class RenderBridge:
 
     def on_mode_changed(self, e: HeadModeChanged) -> None:
         h = self._heads[e.head_id]
-        h.mode, h.target_track = e.mode, e.target_track
+        h.mode, h.target_track, h.mask = e.mode, e.target_track, e.expression
 
     @property
     def has_clients(self) -> bool:

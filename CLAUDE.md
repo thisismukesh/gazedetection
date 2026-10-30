@@ -16,7 +16,7 @@ The full piece: three outward-facing cameras (120° horizontal FOV each) mounted
 - **D2 Viewing distance:** viewers stand a few feet away. Design envelope is 0.5 m to 2.0 m. MediaPipe's built-in short-range face detector covers this; no far-range detector.
 - **D3 Ownership:** every track is owned by exactly one zone at a time, and a head only reacts to the person it is assigned to.
 - **D6 / D14 Head assignment (laptop demo):** a `HeadAssigner` gives each person one head, preferring their zone's head. A lone person gets all three heads; the extras are released (`TrackReleased`) the moment a second person gets a head. Events reach heads readdressed (`zone_id` = head id).
-- **D7 Behaviour:** heads wander while their person looks at the piece and stare at them when they look away.
+- **D7 / D17 Behaviour:** heads wander while their person looks at the piece. When the person is marked away, a head faces forward wearing a random emoji mask (`control.behaviour = "mask"`, the demo default) or turns and stares (`"stare"`, for the physical rig). With more people than heads, a masked head moves on to the most recent waiting looker after `rotate_after_s`.
 - **D12 Liveness:** a face must blink or move before it counts as a person (posters and masks never do).
 
 The full list, D1 to D14, is in `SPECS/03-decisions.md`.

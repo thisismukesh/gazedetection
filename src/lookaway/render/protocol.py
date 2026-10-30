@@ -18,6 +18,7 @@ class HeadView:
     mode: HeadMode = HeadMode.IDLE
     target_track: int | None = None
     person: int | None = None  # the face this head is assigned to (D6, D14)
+    mask: str | None = None  # the emoji mask the head is wearing (D17)
 
 
 def snapshot(heads: list[HeadView], yaw_limit: float, pitch_limit: float) -> str:
@@ -47,6 +48,7 @@ def head_state(t: float, heads: list[HeadView]) -> str:
                     "mode": h.mode.name.lower(),
                     "target_track": h.target_track,
                     "person": h.person,
+                    "mask": h.mask,
                 }
                 for h in heads
             ],

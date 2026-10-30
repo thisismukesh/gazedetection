@@ -79,6 +79,10 @@ beta = 1.0
 d_cutoff = 1.0
 
 [control]
+behaviour = "mask"             # "mask": emoji mask when the person looks away (D17); "stare": turn and stare
+mask_emojis = ["😜", "😱", "🤪", "😴", "🤨", "😵", "🥸", "🤡", "👽", "🙈", "😎", "🤠"]
+mask_min_s = 0.8               # a mask stays on at least this long
+rotate_after_s = 2.0           # with people waiting, a masked head moves on after this long
 rate_hz = 100
 yaw_scale = 4.0
 pitch_scale = 2.0

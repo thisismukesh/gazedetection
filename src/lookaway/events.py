@@ -79,6 +79,7 @@ class HeadModeChanged:
     head_id: int
     mode: HeadMode
     target_track: int | None
+    expression: str | None = None  # the mask emoji while in MASK (D17)
 
 
 Event = (

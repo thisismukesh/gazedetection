@@ -40,7 +40,14 @@ Rules:
 10. **Wander (D7).** In IDLE, if a `TrackUpdated` (state LOOKING or AWAY_PENDING), `GazeAcquired` or `GazeRegained` arrived within `control.wander_looking_ttl_s`, the output carries `wander = True`. The controller then picks random targets: yaw uniform in ±`wander_yaw_deg`, pitch in ±`wander_pitch_deg`, a new one every uniform(`wander_min_dwell_s`, `wander_max_dwell_s`) seconds, all through the normal motion limits.
 11. **Stare (D7).** While in HOLD, a `TrackUpdated` for the target with state AWAY restarts the linger timer, so the head keeps staring for as long as the person looks away.
 
-## Assignment (pure, `control/assigner.py`, D6, D14)
+## Reaction behaviour (D17)
+
+`control.behaviour` selects what a head does when its person is marked away (rules 1 and 5 trigger and release it):
+
+- **`"mask"`** (laptop demo): the head enters **MASK**: it faces forward (pose 0, 0) and wears a random emoji from `control.mask_emojis`, a new pick each time a mask starts. `PolicyOutput.mask` carries the emoji and `HeadModeChanged.expression` announces it. The mask stays on while the person is away, for at least `control.mask_min_s`, and comes off `regain_release_s` after the person looks back (or at once on `TrackReleased`). A head whose person `TrackLost`s keeps the mask until `mask_min_s` has passed, then goes IDLE. While masked, the head is said to be locked on its person.
+- **`"stare"`** (physical rig): ORIENT -> HOLD -> RETURN as in the table above.
+
+## Assignment (pure, `control/assigner.py`, D6, D14, D17)
 
 `HeadAssigner.on_event(event) -> list[Event]` sits between the attention events and the heads.
 
@@ -50,6 +57,8 @@ Rules:
 4. `TrackLost` is forwarded, then the head is freed.
 5. **Solo ownership (D14).** When exactly one track has a head, that track also owns every other head (its followers). All its events are delivered to each of its heads, retargeted per head. When a second track gets a head, the followers are released: `TrackReleased(track, head)` is emitted for each, then the new track's events flow. When tracks leave and exactly one remains, the free heads rejoin it; a head that rejoins while the person is looking away receives a synthetic `GazeLost` so it stares at once.
 6. Each `GazeLost` reaches only the heads its track owns, and no head is owned by two tracks at once.
+7. **Waiting people (D17).** Tracks that get no head wait. The assigner remembers each waiting track's state and the time of its latest `GazeAcquired`/`GazeRegained` (its gaze capture).
+8. **Rotation (D17).** When a head's person has been marked AWAY for at least `control.rotate_after_s` and a waiting track is LOOKING, the head is released from its person (`TrackReleased`) and given to the LOOKING waiting track with the latest gaze capture. The released person starts waiting. A freed head (`TrackLost`) is also given to that track, if any.
 
 ## Motion (pure, `control/motion.py`)
 

@@ -298,3 +298,79 @@ def test_AC_HEAD_14_away_again_cancels_the_release() -> None:
     r.run(P.regain_release_s / 2, arrived=True)
     r.p.on_event(away_upd(r.t))
     assert r.run(P.regain_release_s, arrived=True).mode is HeadMode.HOLD
+
+
+# --- D17: mask behaviour ------------------------------------------------------------------
+
+EMOJIS = tuple(C.mask_emojis)
+PM = replace(P, behaviour="mask", mask_emojis=EMOJIS, mask_min_s=C.mask_min_s)
+
+
+def mask_rig(seed: int = 1) -> Rig:
+    import random
+
+    r = Rig(PM)
+    r.p = HeadPolicy(PM, random.Random(seed))
+    return r
+
+
+def test_AC_MASK_01_away_puts_on_a_mask() -> None:
+    for trigger in ("lost", "update"):
+        r = mask_rig()
+        r.p.on_event(lost(r.t) if trigger == "lost" else away_upd(r.t))
+        out = r.tick()
+        assert out.mode is HeadMode.MASK and out.mask in EMOJIS and out.target_track == 7
+
+
+def test_AC_MASK_02_mask_comes_off_after_looking_back() -> None:
+    r = mask_rig()
+    r.p.on_event(away_upd(r.t))
+    r.tick()
+    r.run(C.mask_min_s + 0.2)  # past the minimum
+    r.p.on_event(looking_upd(r.t))
+    assert r.run(P.regain_release_s - 0.1).mode is HeadMode.MASK
+    out = r.run(0.2)
+    assert out.mode is HeadMode.IDLE and out.mask is None and out.wander is True
+
+
+def test_AC_MASK_02_minimum_display_time() -> None:
+    r = mask_rig()
+    r.p.on_event(away_upd(r.t))
+    r.tick()
+    r.p.on_event(looking_upd(r.t))  # looks straight back
+    assert r.run(C.mask_min_s - 0.1).mode is HeadMode.MASK
+    assert r.run(0.2).mode is HeadMode.IDLE
+
+
+def test_AC_MASK_03_same_emoji_while_away_new_pick_next_time() -> None:
+    r = mask_rig(seed=3)
+    r.p.on_event(away_upd(r.t))
+    first = r.tick().mask
+    for _ in range(20):
+        r.p.on_event(away_upd(r.t))
+        assert r.run(0.1).mask == first
+    picks = {first}
+    for _ in range(12):  # look back, then away again: a fresh random pick each time
+        r.p.on_event(looking_upd(r.t))
+        r.run(C.mask_min_s + P.regain_release_s + 0.1)
+        r.p.on_event(away_upd(r.t))
+        picks.add(r.tick().mask)
+    assert len(picks) >= 3 and picks <= set(EMOJIS)
+
+
+def test_AC_MASK_04_release_takes_the_mask_off_at_once() -> None:
+    r = mask_rig()
+    r.p.on_event(away_upd(r.t))
+    r.tick()
+    r.p.on_event(TrackReleased(r.t, 7, 1))
+    out = r.tick()
+    assert out.mode is HeadMode.IDLE and out.mask is None
+
+
+def test_mask_stays_until_minimum_when_person_leaves() -> None:
+    r = mask_rig()
+    r.p.on_event(away_upd(r.t))
+    r.tick()
+    r.p.on_event(TrackLost(r.t, 7, 1))
+    assert r.run(C.mask_min_s - 0.1).mode is HeadMode.MASK
+    assert r.run(0.2).mode is HeadMode.IDLE

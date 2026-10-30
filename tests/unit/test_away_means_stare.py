@@ -1,4 +1,4 @@
-"""AC-SYS-06 (D16): whenever a person is marked away, their heads stare at them."""
+"""AC-SYS-06 (D16) and AC-MASK-05 (D17): whenever a person is marked away, their heads react."""
 
 from __future__ import annotations
 
@@ -27,11 +27,15 @@ from tests.fixtures.scenarios import sway
 from tests.fixtures.synth import make_obs
 
 
-def _run(recs: list[scenarios.Record], tmp_path: Path) -> list[tuple[float, set[int], bool]]:
+def _run(
+    recs: list[scenarios.Record], tmp_path: Path, behaviour: str = "stare"
+) -> list[tuple[float, set[int], bool]]:
     """Replay through pipeline -> assigner -> 3 heads; per frame: (t, staring heads, away?)."""
     path = tmp_path / "r.jsonl"
     write_jsonl(path, recs)
     cfg = load_config()
+    ctl = cfg.control.model_copy(update={"behaviour": behaviour})
+    cfg = cfg.model_copy(update={"control": ctl})
     raw, bus = EventBus(), EventBus()
     src = ReplaySource(path, 1280, 720, cfg.capture.hfov_rad, 30)
     pipe = build_pipeline(cfg, src.info, ReplayPerception(path), raw)
@@ -41,7 +45,7 @@ def _run(recs: list[scenarios.Record], tmp_path: Path) -> list[tuple[float, set[
     staring: set[int] = set()
 
     def on_mode(e: HeadModeChanged) -> None:
-        if e.mode in (HeadMode.ORIENT, HeadMode.HOLD):
+        if e.mode in (HeadMode.ORIENT, HeadMode.HOLD, HeadMode.MASK):
             staring.add(e.head_id)
         else:
             staring.discard(e.head_id)
@@ -100,3 +104,20 @@ def test_AC_SYS_06_look_away_inside_the_cooldown_is_stared_at(tmp_path: Path) ->
     trace = _run(recs, tmp_path)
     late = [s for t, s, a in trace if 4.6 <= t < 6.0]
     assert late and all(s == {0, 1, 2} for s in late)
+
+
+def _away_rec(seconds: float, away: tuple[float, float]) -> list[scenarios.Record]:
+    recs: list[scenarios.Record] = []
+    for i in range(round(30 * seconds)):
+        t = i / 30
+        is_away = away[0] <= t < away[1]
+        kw: dict[str, float] = {"head_yaw_deg": 40.0, "head_pitch_deg": 0.0} if is_away else {}
+        recs.append((i, t, [make_obs(t=t, x_px=520 + sway(t), distance_m=1.2, **kw)]))
+    return recs
+
+
+def test_AC_MASK_05_lone_person_looking_away_masks_all_three(tmp_path: Path) -> None:
+    trace = _run(_away_rec(7.0, (3.0, 5.0)), tmp_path, behaviour="mask")
+    assert _settled(trace)
+    after = [s for t, s, _ in trace if t >= 6.2]
+    assert after and all(s == set() for s in after)  # masks off once they look back

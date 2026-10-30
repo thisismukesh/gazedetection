@@ -2,9 +2,9 @@
 
 ## Purpose
 
-A laptop demo of **Look Away**: three on-screen mannequin heads watching the people in front of a single webcam. While a person looks at the piece, their head(s) glance around at random. When they look away, their head(s) snap toward them (yaw and pitch) and stare, following them until they look back or leave, then return. It repeats every time someone looks away.
+A laptop demo of **Look Away**: three on-screen mannequin heads watching the people in front of a single webcam. While a person looks at the piece, their head(s) glance around at random. When they look away, their head(s) face forward and put on a random emoji mask until they look back (D17; the physical rig can instead turn and stare, `control.behaviour = "stare"`). It repeats every time someone looks away.
 
-Who gets which head (D6, D14): each person gets one head, preferring the head for their third of the view. A lone person gets all three heads. A fourth person waits until a head frees up.
+Who gets which head (D6, D14): each person gets one head, preferring the head for their third of the view. A lone person gets all three heads. With more than three people, extra people wait; a head that has worn its mask for a while moves on to the waiting person whose gaze was captured most recently.
 
 The demo is built so the physical version (three outward-facing 120° cameras, three actuated 2-DOF heads) reuses all perception, attention and control logic.
 

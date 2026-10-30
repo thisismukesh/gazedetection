@@ -148,6 +148,7 @@ class HeadMode(Enum):
     ORIENT = auto()
     HOLD = auto()
     RETURN = auto()
+    MASK = auto()  # D17: facing forward, wearing an emoji mask
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,7 +184,7 @@ All events are frozen dataclasses with a leading `t: float`.
 | `TrackLost` | `track_id`, `zone_id` |
 | `TrackReleased` | `track_id`, `zone_id` (the head that stops following this track; D14) |
 | `SourceStatus` | `source_id`, `ok: bool`, `detail: str` |
-| `HeadModeChanged` | `head_id`, `mode: HeadMode`, `target_track: int \| None` |
+| `HeadModeChanged` | `head_id`, `mode: HeadMode`, `target_track: int \| None`, `expression: str \| None` (the mask emoji, D17) |
 
 ## Bus semantics
 

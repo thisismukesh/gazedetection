@@ -178,7 +178,9 @@ async def run_app(
         cfg.control.limits.pitch_rad, cfg.render.rate_hz, cfg.render.allow_lan, clock.now,
     )  # fmt: skip
     bridge.attach(bus)
-    assigner = HeadAssigner([pipeline.zone_center(k) for k in range(cfg.zones.count)])
+    assigner = HeadAssigner(
+        [pipeline.zone_center(k) for k in range(cfg.zones.count)], cfg.control.rotate_after_s
+    )
 
     def assign(event: Event) -> None:
         bus.publish_all(assigner.on_event(event))

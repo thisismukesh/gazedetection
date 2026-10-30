@@ -10,7 +10,8 @@ from lookaway.control.factory import build_head_controller
 from lookaway.events import EventBus, GazeLost, HeadModeChanged, TrackReleased, TrackUpdated
 from lookaway.types import AttentionState, HeadMode
 
-C = load_config().control
+C = load_config().control.model_copy(update={"behaviour": "stare"})  # AC-HEAD-01..12: stare
+CM = load_config().control.model_copy(update={"behaviour": "mask"})
 D = math.radians
 
 
@@ -136,3 +137,29 @@ def test_AC_HEAD_12_head_reacts_almost_immediately() -> None:
     assert abs(r.pose(1)[0]) >= 5.0
     r.run(0.2)
     assert r.pose(1)[0] == pytest.approx(target_yaw, abs=2.0)
+
+
+def test_AC_MASK_01_masked_head_faces_forward_and_announces_the_emoji() -> None:
+    import random
+
+    bus = EventBus()
+    drv = RecordingHeadDriver()
+    head = build_head_controller(CM, 1, drv, bus, random.Random(2))
+    changes: list[HeadModeChanged] = []
+    bus.subscribe(HeadModeChanged, changes.append)
+    t = 0.0
+    bus.publish(TrackUpdated(t, 7, 1, D(8.0), 0.0, 0.9, AttentionState.LOOKING))
+    for _ in range(100):  # wander for a second: the head is turned somewhere
+        t += 0.01
+        head.tick(t)
+    bus.publish(GazeLost(t, 7, 1, D(8.0), 0.0, None))
+    for _ in range(40):
+        t += 0.01
+        head.tick(t)
+    s = drv.state()
+    assert (
+        s is not None
+        and abs(math.degrees(s.yaw_rad)) < 1.0
+        and abs(math.degrees(s.pitch_rad)) < 1.0
+    )
+    assert changes[-1].mode is HeadMode.MASK and changes[-1].expression in CM.mask_emojis

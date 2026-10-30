@@ -51,6 +51,7 @@ class HeadController:
         self._f_el = OneEuroFilter(*target_filter)
         self._mode = HeadMode.IDLE
         self._track: int | None = None
+        self._mask: str | None = None
         for et in (GazeLost, GazeRegained, TrackUpdated, TrackLost, TrackReleased):
             bus.subscribe(et, policy.on_event)
 
@@ -59,6 +60,8 @@ class HeadController:
         return self._mode
 
     def _pose(self, t: float, out: PolicyOutput) -> tuple[float, float]:
+        if out.mode is HeadMode.MASK:
+            return 0.0, 0.0  # D17: face the audience so the mask reads
         if out.target_track is None:
             return self._wander.target(t) if out.wander else (out.sway_yaw_rad, 0.0)
         if out.target_track != self._track:
@@ -89,11 +92,14 @@ class HeadController:
 
     def _preview(self, t: float, out: PolicyOutput) -> tuple[float, float]:
         """Target pose for arrival checks, without advancing the target filters."""
+        if out.mode is HeadMode.MASK:
+            return 0.0, 0.0
         if out.target_track is None:
             return self._wander.target(t) if out.wander else (out.sway_yaw_rad, 0.0)
         return target_pose(self._tp, out.az_rel_rad, out.el_rad)
 
     def _announce(self, t: float, out: PolicyOutput) -> None:
-        if out.mode is not self._mode or out.target_track != self._track:
+        if out.mode is not self._mode or out.target_track != self._track or out.mask != self._mask:
+            self._mask = out.mask
             self._mode = out.mode
-            self._bus.publish(HeadModeChanged(t, self._id, out.mode, out.target_track))
+            self._bus.publish(HeadModeChanged(t, self._id, out.mode, out.target_track, out.mask))

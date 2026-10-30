@@ -50,6 +50,9 @@ def policy_params_from_config(c: Control, zone_id: int) -> PolicyParams:
         idle_sway_rad=math.radians(c.idle_sway_deg),
         idle_sway_period_s=c.idle_sway_period_s,
         wander_looking_ttl_s=c.wander_looking_ttl_s,
+        behaviour=c.behaviour,
+        mask_emojis=tuple(c.mask_emojis),
+        mask_min_s=c.mask_min_s,
     )
 
 
@@ -63,9 +66,10 @@ def build_head_controller(
     """One controller per head; head k serves zone k."""
     lim = limits_from_config(c)
     e = c.target_one_euro
+    rng = rng or random.Random()
     return HeadController(
         head_id,
-        HeadPolicy(policy_params_from_config(c, head_id)),
+        HeadPolicy(policy_params_from_config(c, head_id), rng),
         target_params_from_config(c),
         (lim.yaw_rad, lim.pitch_rad, lim.vel_rad_s, lim.acc_rad_s2),
         math.radians(c.arrive_tol_deg),
@@ -80,6 +84,6 @@ def build_head_controller(
                 c.wander_min_dwell_s,
                 c.wander_max_dwell_s,
             ),
-            rng or random.Random(),
+            rng,
         ),
     )

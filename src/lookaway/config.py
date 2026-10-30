@@ -139,6 +139,10 @@ class Limits(_Model):
 
 
 class Control(_Model):
+    behaviour: Literal["mask", "stare"]
+    mask_emojis: list[str] = Field(min_length=1)
+    mask_min_s: float = Field(ge=0.0)
+    rotate_after_s: PositiveFloat
     rate_hz: PositiveInt
     yaw_scale: PositiveFloat
     pitch_scale: PositiveFloat

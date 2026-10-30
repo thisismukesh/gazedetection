@@ -14,9 +14,9 @@ Start: `uv run lookaway run` (add `--overlay` for the debug window; `D` toggles 
 Look for:
 
 - [ ] While someone looks at the piece, their head glances around randomly
-- [ ] The moment they look away, their head turns to them and stares until they look back
+- [ ] The moment they look away, their head faces forward wearing an emoji mask; it comes off when they look back
 - [ ] A blink or a very quick glance does not trigger
-- [ ] One person alone: all three heads glance around, then all three stare when they look away
+- [ ] One person alone: all three heads glance around, then all three put on masks when they look away
 - [ ] Several people at once: each gets their own head; a head never reacts to someone else's person
 - [ ] Posters or pictures of faces in view are shown as `static?` and ignored
-- [ ] A fourth person is ignored until a head frees up
+- [ ] A fourth person waits; a head that has been masked for 2 s moves on to them if they are looking

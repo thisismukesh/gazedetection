@@ -208,3 +208,24 @@ head after `regain_release_s`, like `GazeRegained`. Cooldown and rate limit now 
 often `GazeLost` events are emitted and logged.
 
 **Consequences.** Whenever the camera view marks a person away, their head(s) stare at them.
+
+## D17 Masks instead of staring on a flat display (2026-10-30)
+
+**Context.** On a 2D display a head turning "toward" a viewer does not read clearly. The project
+lead wants a clearer reaction.
+
+**Decision.** `control.behaviour` selects the reaction. `"mask"` (the laptop-demo default): while a
+head's person looks at the piece the head wanders as before (D7); when the person is marked away
+the head faces forward and wears a random emoji mask from `control.mask_emojis`, a new pick each
+time, for at least `control.mask_min_s` and until `regain_release_s` after the person looks back.
+`"stare"`: the D1/D7/D16 turn-and-stare behaviour, kept for the physical rig.
+
+Assignment (extends D6, D14): one person owns all three heads; two or three people get one head
+each. With more people than heads, the extra people wait. When a head has worn its mask for
+`control.rotate_after_s` and someone is waiting, it lets go of its person (`TrackReleased`) and
+takes the waiting person whose gaze was captured most recently (latest `GazeAcquired` or
+`GazeRegained`) and who is looking now. The released person waits. A head never takes a person
+another head holds.
+
+**Consequences.** New `HeadMode.MASK`, an `expression` field on `HeadModeChanged` and a `mask`
+field in `head_state`. The renderer draws the emoji on the head's face.
