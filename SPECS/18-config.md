@@ -65,7 +65,7 @@ softness_deg = 4.0
 blink_thresh = 0.5
 t_on = 0.65
 t_off = 0.35
-away_confirm_s = 0.2
+away_confirm_s = 0.1
 look_confirm_s = 0.30
 retrigger_cooldown_s = 1.0
 missing_as_away_s = 0.35
@@ -74,8 +74,8 @@ trigger_on_first_seen_away = false
 max_triggers_per_min = 12
 
 [attention.one_euro]
-min_cutoff = 1.0
-beta = 0.05
+min_cutoff = 6.0
+beta = 1.0
 d_cutoff = 1.0
 
 [control]
@@ -98,15 +98,15 @@ wander_max_dwell_s = 1.5
 wander_looking_ttl_s = 1.0       # a person counts as looking this long after the last LOOKING update
 
 [control.target_one_euro]
-min_cutoff = 0.8
-beta = 0.02
+min_cutoff = 2.0
+beta = 0.1
 d_cutoff = 1.0
 
 [control.limits]
 yaw_deg = 60.0
 pitch_deg = 30.0
-vel_deg_s = 360.0
-acc_deg_s2 = 2400.0
+vel_deg_s = 540.0
+acc_deg_s2 = 4000.0
 
 [render]
 host = "127.0.0.1"

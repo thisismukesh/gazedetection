@@ -1,11 +1,12 @@
 // Three.js client for the Look Away heads. Implements SPECS/17 (Client).
 // Heads are drawn left to right as zone 0, 1, 2 from the audience's view.
 import * as THREE from "three";
+import { indicator, personColor } from "./indicator.js";
 import { applyPose } from "./pose.js";
 
 const SLEEP_PITCH = -0.45;
 const HEAD_X = [-2.4, 0, 2.4];
-const SMOOTH_TIME = 0.08; // seconds; critically damped follow
+const SMOOTH_TIME = 0.03; // seconds; critically damped follow (D15: near-immediate)
 
 const statusEl = document.getElementById("status");
 const camPanel = document.getElementById("cam");
@@ -85,6 +86,39 @@ const template = await loadHeadTemplate();
 const heads = HEAD_X.map((x) => (template ? makeGlbHead(x, template) : makeHead(x)));
 const target = HEAD_X.map(() => ({ yaw: 0, pitch: SLEEP_PITCH }));
 const current = HEAD_X.map(() => ({ yaw: 0, pitch: SLEEP_PITCH, vy: 0, vp: 0 }));
+
+// Indicator under each head: which face (#N, as in the camera view) it is looking at.
+const TAG_ANCHOR_Y = -1.9; // just below the neck, in scene units
+const tags = HEAD_X.map(() => {
+  const el = document.createElement("div");
+  el.className = "tag";
+  el.innerHTML = '<i class="dot"></i><span></span>';
+  document.body.appendChild(el);
+  return el;
+});
+
+function setIndicators(list) {
+  for (const h of list) {
+    const el = tags[h.id];
+    if (!el) continue;
+    const ind = indicator(h);
+    el.querySelector("span").textContent = ind.text;
+    el.querySelector(".dot").style.background = personColor(ind.person);
+    el.dataset.kind = ind.kind;
+  }
+}
+
+const anchor = new THREE.Vector3();
+function placeIndicators() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  tags.forEach((el, i) => {
+    anchor.set(HEAD_X[i], TAG_ANCHOR_Y, 0).project(camera);
+    el.style.left = `${((anchor.x + 1) / 2) * w}px`;
+    const y = ((1 - anchor.y) / 2) * h;
+    el.style.top = `${Math.min(y, h - el.offsetHeight - 30)}px`; // never below the window edge
+  });
+}
 let connected = false;
 
 function smoothDamp(x, goal, v, dt) {
@@ -156,6 +190,7 @@ function connect() {
       setStatus("live");
     } else if (msg.type === "head_state") {
       setTargets(msg.heads);
+      setIndicators(msg.heads);
       setStatus(msg.heads.map((h) => `${h.id}:${h.mode}`).join("  "));
     }
   };
@@ -165,6 +200,7 @@ function connect() {
       t.yaw = 0;
       t.pitch = SLEEP_PITCH;
     }
+    setIndicators(HEAD_X.map((_, id) => ({ id, mode: "idle", target_track: null, person: null })));
     setStatus("disconnected, retrying…");
     setTimeout(connect, backoff * 1000);
     backoff = Math.min(backoff * 2, 5);
@@ -196,6 +232,7 @@ function frame(now) {
     applyPose(head.rotation, c.yaw, c.pitch);
   });
   renderer.render(scene, camera);
+  placeIndicators();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

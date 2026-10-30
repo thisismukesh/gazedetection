@@ -17,6 +17,7 @@ class HeadView:
     pitch: float = 0.0
     mode: HeadMode = HeadMode.IDLE
     target_track: int | None = None
+    person: int | None = None  # the face this head is assigned to (D6, D14)
 
 
 def snapshot(heads: list[HeadView], yaw_limit: float, pitch_limit: float) -> str:
@@ -45,6 +46,7 @@ def head_state(t: float, heads: list[HeadView]) -> str:
                     "pitch": h.pitch,
                     "mode": h.mode.name.lower(),
                     "target_track": h.target_track,
+                    "person": h.person,
                 }
                 for h in heads
             ],

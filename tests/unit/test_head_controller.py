@@ -124,3 +124,14 @@ def test_orient_does_not_complete_before_the_head_moves() -> None:
     r.lost(1, 5.0, 0.0)
     r.run(0.03)
     assert r.heads[1].mode is HeadMode.ORIENT
+
+
+def test_AC_HEAD_12_head_reacts_almost_immediately() -> None:
+    r = Rig()
+    r.run(0.1)
+    target_yaw = 40.0
+    r.lost(1, target_yaw / C.yaw_scale, 0.0)
+    r.run(0.1)
+    assert abs(r.pose(1)[0]) >= 5.0
+    r.run(0.2)
+    assert r.pose(1)[0] == pytest.approx(target_yaw, abs=2.0)

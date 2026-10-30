@@ -122,3 +122,12 @@ def test_head_freed_after_track_lost_is_reusable() -> None:
     a.on_event(TrackLost(0.0, 1, 1))
     a.on_event(upd(2, 1))
     assert a.head_of(2) == 1
+
+
+def test_AC_ASSIGN_08_owners_maps_heads_to_tracks() -> None:
+    a = HeadAssigner(CENTRES)
+    assert a.owners() == {}
+    a.on_event(upd(5, 1))
+    assert a.owners() == {0: 5, 1: 5, 2: 5}  # a lone person owns every head
+    a.on_event(upd(6, 2))
+    assert a.owners() == {1: 5, 2: 6}  # head 0 is free again

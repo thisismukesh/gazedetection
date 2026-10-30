@@ -179,8 +179,13 @@ async def run_app(
     )  # fmt: skip
     bridge.attach(bus)
     assigner = HeadAssigner([pipeline.zone_center(k) for k in range(cfg.zones.count)])
+
+    def assign(event: Event) -> None:
+        bus.publish_all(assigner.on_event(event))
+        bridge.set_people(assigner.owners())
+
     for et in _EVENT_TYPES:
-        raw_bus.subscribe(et, lambda e: bus.publish_all(assigner.on_event(e)))
+        raw_bus.subscribe(et, assign)
     modes, targets = _track_head_state(raw_bus, bus, metrics, clock)
     journal = _maybe_journal(cfg, bus)
     heads = [

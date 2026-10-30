@@ -40,6 +40,10 @@ class HeadAssigner:
             return []
         return sorted({self._primary[track_id], *self._followers.get(track_id, set())})
 
+    def owners(self) -> dict[int, int]:
+        """Head -> owning track (primary or follower); free heads are omitted. AC-ASSIGN-08."""
+        return {h: t for t in self._primary for h in self.heads_of(t)}
+
     def assignments(self) -> dict[int, int]:
         return dict(self._primary)
 

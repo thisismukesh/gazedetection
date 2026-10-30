@@ -56,6 +56,11 @@ class RenderBridge:
         h = self._heads[cmd.head_id]
         h.yaw, h.pitch = cmd.yaw_rad, cmd.pitch_rad
 
+    def set_people(self, owners: dict[int, int]) -> None:
+        """Which face each head is assigned to (head id -> track id); others become None."""
+        for h in self._heads:
+            h.person = owners.get(h.id)
+
     def on_mode_changed(self, e: HeadModeChanged) -> None:
         h = self._heads[e.head_id]
         h.mode, h.target_track = e.mode, e.target_track

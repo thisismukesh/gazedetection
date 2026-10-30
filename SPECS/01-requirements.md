@@ -26,7 +26,7 @@
 - **NFR-PERF-01** Pipeline at 24 FPS or more at 1280x720 with up to 4 faces on the reference laptop (Apple M-series or recent x86-64, CPU only).
 - **NFR-PERF-02** Perception latency (capture timestamp to attention score) p95 at or below 80 ms.
 - **NFR-PERF-03** Event to first changed `HeadCommand` at or below 50 ms.
-- **NFR-PERF-04** Look-away onset to visible head motion at or below 450 ms with default debounce.
+- **NFR-PERF-04** Look-away onset to visible head motion at or below 250 ms with default debounce (D15): detection about 100 ms, then the head starts moving on the next control tick.
 - **NFR-ROB-01** No trigger from blinks up to 400 ms or from score dips shorter than `attention.away_confirm_s`.
 - **NFR-ROB-02** No per-user calibration.
 - **NFR-ROB-03** Detects frontal faces at 0.5 m to 2.0 m in at least 95% of frames under normal indoor lighting (D2).

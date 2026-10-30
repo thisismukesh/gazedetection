@@ -15,6 +15,13 @@
                    font: 11px ui-monospace, monospace; color: #9a9aa6; letter-spacing: .03em; }
     .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px;
           vertical-align: -1px; }
+    .tag { position: fixed; transform: translate(-50%, 0); display: flex; align-items: center;
+           gap: 8px; padding: 6px 12px; border-radius: 999px; background: #17171d;
+           border: 1px solid #2a2a33; font: 13px ui-monospace, monospace; color: #9a9aa6;
+           white-space: nowrap; pointer-events: none; transition: color .15s, border-color .15s; }
+    .tag .dot { width: 10px; height: 10px; border-radius: 50%; background: #6b6b78; }
+    .tag[data-kind="staring"] { color: #f2f2f5; border-color: #e63c3c; }
+    .tag[data-kind="watched"] { color: #d6d6de; }
     #status { position: fixed; left: 12px; bottom: 10px; font: 12px ui-monospace, monospace;
               color: #8a8a96; letter-spacing: 0.04em; }
   </style>

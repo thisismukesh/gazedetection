@@ -98,3 +98,11 @@ def test_AC_TRK_06_blink_makes_a_still_face_live_and_it_stays_live(tmp_path: Pat
 def test_AC_TRK_06_movement_makes_a_face_live(tmp_path: Path) -> None:
     events, live = _drive(scenarios.single_look_away(seconds=6.0, away=(2.5, 4.5)), tmp_path)
     assert live[-1] and any(isinstance(e, GazeLost) for e in events)
+
+
+def test_AC_SYS_05_look_away_detected_within_150ms(tmp_path: Path) -> None:
+    recs = scenarios.single_look_away(seconds=6.0, away=(3.0, 5.0), x_px=520.0)
+    lost = [e for e in run_replay(_write(tmp_path, "l.jsonl", recs)) if isinstance(e, GazeLost)]
+    assert lost and lost[0].t - 3.0 <= 0.15 + 1e-9
+    blinks = run_replay(_write(tmp_path, "b.jsonl", scenarios.blink_storm()))
+    assert not any(isinstance(e, GazeLost) for e in blinks)

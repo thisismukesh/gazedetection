@@ -179,3 +179,17 @@ acceleration limits rise to 360 deg/s and 2400 deg/s2, and `away_confirm_s` drop
 **Consequences.** `TrackReleased` joins the event list. Exactly-one-head-per-person (D3) still holds
 whenever two or more people are present; with one person all heads are theirs. The physical rig
 will set the limits to what the servos allow.
+
+## D15 Near-immediate reaction (2026-10-29)
+
+**Context.** Live use showed too much lag between looking away and the heads reacting. Measured on
+the synthetic look-away: 0.30 s to `GazeLost`, then head motion and browser smoothing on top.
+
+**Decision.** `away_confirm_s` 0.1 (three frames at 30 fps); score filter `min_cutoff` 6 Hz,
+`beta` 1.0; bearing filter `min_cutoff` 2 Hz, `beta` 0.1; head limits 540 deg/s and 4000 deg/s2;
+browser smoothing time 30 ms. Detection lag drops to about 0.10 s with no extra triggers on the
+blink scenario. Blinks still pause the timer; hysteresis and the cooldown still apply.
+
+**Consequences.** More sensitive to brief glances and to landmark noise; the tuning study should
+confirm the false-trigger rate stays at or below one per minute (AC-SYS-01). NFR-PERF-04 tightens
+to 250 ms.

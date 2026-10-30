@@ -62,7 +62,7 @@ def test_AC_SM_01_sustained_away_emits_one_gaze_lost() -> None:
 def test_AC_SM_02_short_dip_no_event() -> None:
     d = looking()
     n = len(d.events)
-    d.run(0.15, LO)
+    d.run(default_sm_params().away_confirm_s / 2, LO)  # shorter than the confirm time
     d.run(0.5, HI)
     new = d.events[n:]
     assert all(isinstance(e, TrackUpdated) for e in new)
@@ -76,11 +76,12 @@ def test_AC_SM_03_blink_does_not_trigger() -> None:
 
 
 def test_blink_pauses_pending_timer() -> None:
+    confirm = default_sm_params().away_confirm_s
     d = looking()
-    d.run(0.15, LO)  # pending, less than away_confirm
+    d.run(confirm / 2, LO)  # pending, less than away_confirm
     d.run(1.0, LO, closed=True)  # blink must not advance the timer
     assert d.of(GazeLost) == []
-    d.run(0.2, LO)
+    d.run(confirm + 2 * DT, LO)
     assert len(d.of(GazeLost)) == 1
 
 

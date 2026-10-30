@@ -79,7 +79,9 @@ Format: Given / When / Then. Test names use the ID, e.g. `test_AC_SM_03_blink_do
 - **AC-ASSIGN-04** Given an assigned person who moves into another zone, then they keep their head(s).
 - **AC-ASSIGN-05** Bearings are re-referenced to the receiving head's zone centre.
 - **AC-ASSIGN-06** (property) For any event sequence, no head is owned by two live tracks at once (ownership changes only through `TrackReleased` or `TrackLost`), every retargeted event names a valid head, and with two or more headed tracks each owns exactly one head.
+- **AC-ASSIGN-08** `owners()` maps every head to the track that owns it (primary or follower) and omits free heads.
 - **AC-ASSIGN-07** Given one person who is looking away and a second person who then leaves, then the freed heads rejoin and each receives a `GazeLost` for the first person.
+- **AC-HEAD-12** (D15) Given an IDLE head, when `GazeLost` with a bearing that maps to 40 degrees of yaw arrives, then the head has moved at least 5 degrees within 0.1 s and is within 2 degrees of the target within 0.3 s.
 - **AC-HEAD-11** (D14) Given a head staring at track 7, when `TrackReleased` for track 7 arrives, then the head goes to RETURN and does not wander on that person's behalf.
 
 ## Renderer
@@ -90,6 +92,7 @@ Format: Given / When / Then. Test names use the ID, e.g. `test_AC_SM_03_blink_do
 
 - **AC-REN-04** Given `render.camera_view = true` and a connected client, then binary JPEG messages arrive after the `snapshot`, at most `camera_view_fps` per second, and none are sent when no client is connected.
 - **AC-REN-05** Given `render.camera_view = true` and `render.allow_lan = true`, then the config is rejected.
+- **AC-REN-06** Given head 1 assigned to track 7 and staring at it, then its `head_state` entry has `person = 7` and `target_track = 7`, and the indicator under head 1 reads `staring at #7`; an unassigned idle head has `person = null` and reads `idle · no one`.
 - **AC-OBS-01** Given a track with a head direction and gaze direction, then the overlay draws a head arrow, a gaze arrow and the iris points on it, and draws nothing extra for a coasting track.
 
 ## System
@@ -97,4 +100,5 @@ Format: Given / When / Then. Test names use the ID, e.g. `test_AC_SM_03_blink_do
 - **AC-SYS-01** (integration) Given labelled consented clips (single look-away, phone glance down, two people, boundary walker), when run headless, then each labelled look-away yields `GazeLost` handled by the correct head within [onset + 0.15 s, onset + 0.6 s], with at most one false trigger per minute.
 - **AC-SYS-02** Given installation mode, when the pipeline runs for 60 s on a video source, then no file writes happen except log output, and no log line contains a list longer than 8 numbers.
 - **AC-SYS-03** (manual/nightly) Given `lookaway bench` on the reference laptop, then NFR-PERF-01 and NFR-PERF-02 hold.
+- **AC-SYS-05** (D15) Given the synthetic single look-away replayed at 30 fps, then `GazeLost` is emitted at most 0.15 s after the onset frame, and the blink-storm scenario still produces no `GazeLost`.
 - **AC-SYS-04** Given the same landmark JSONL replayed twice with `FakeClock`, then the event sequences are identical.
