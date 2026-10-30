@@ -13,7 +13,7 @@ from lookaway.events import EventBus, GazeLost, TrackUpdated
 from lookaway.observability.journal import Journal
 from lookaway.observability.logging import configure_logging, scrub_arrays
 from lookaway.observability.metrics import Metrics
-from lookaway.observability.overlay import OverlayInfo, draw_overlay
+from lookaway.observability.overlay import OverlayInfo, draw_overlay, scale_info
 from lookaway.pipeline import DebugTrack, build_pipeline
 from lookaway.recording import RecordingRefused, record_landmarks
 from lookaway.types import AttentionState, Frame
@@ -47,10 +47,10 @@ def test_pipeline_records_metrics_and_debug(tmp_path: Path) -> None:
     from lookaway.perception.replay import ReplayPerception, write_jsonl
 
     p = tmp_path / "s.jsonl"
-    write_jsonl(p, scenarios.single_look_away(seconds=3.0, away=(1.0, 2.0)))
+    write_jsonl(p, scenarios.single_look_away(seconds=5.0, away=(2.5, 4.0)))
     cfg = load_config()
     src = ReplaySource(p, 1280, 720, cfg.capture.hfov_rad, 30)
-    clock, metrics = FakeClock(), Metrics(3.0)
+    clock, metrics = FakeClock(), Metrics(5.0)
     pipe = build_pipeline(cfg, src.info, ReplayPerception(p), EventBus(), clock, metrics)
     src.open()
     while (f := src.read()) is not None:
@@ -61,6 +61,55 @@ def test_pipeline_records_metrics_and_debug(tmp_path: Path) -> None:
     assert snap["events_total.GazeLost"] == 1
     assert metrics.latency("lat.total", clock.now())["p95"] >= 4.0
     assert pipe.debug and isinstance(pipe.debug[0], DebugTrack)
+
+
+def _vec_track(coasting: bool = False) -> DebugTrack:
+    return DebugTrack(
+        3, 1, 0.9, AttentionState.LOOKING, (400.0, 200.0, 500.0, 330.0),
+        centroid_px=(450.0, 260.0), iod_px=50.0,
+        head_dir=None if coasting else (0.30, -0.10, -0.95),
+        gaze_dir=None if coasting else (-0.40, 0.20, -0.89),
+        iris_px=None if coasting else ((430.0, 255.0), (470.0, 255.0)),
+    )  # fmt: skip
+
+
+def _info(track: DebugTrack, assignments: dict[int, int] | None = None) -> OverlayInfo:
+    return OverlayInfo(
+        tracks=[track], boundaries=[0.3333, 0.6667], head_modes={0: 'idle', 1: 'idle', 2: 'idle'},
+        head_targets={}, fps=30.0, p95_ms=20.0, mirror=True, assignments=assignments or {},
+    )  # fmt: skip
+
+
+def test_AC_OBS_01_overlay_draws_vectors_and_iris_only_for_live_tracks() -> None:
+    img = np.zeros((720, 1280, 3), np.uint8)
+    live = draw_overlay(img, _info(_vec_track()))
+    coasting = draw_overlay(img, _info(_vec_track(coasting=True)))
+    # cyan head arrow and yellow gaze arrow exist only on the live track
+    cyan = np.all(live == (255, 255, 0), axis=2).sum()
+    yellow = np.all(live == (0, 255, 255), axis=2).sum()
+    assert cyan > 10 and yellow > 10
+    assert np.all(coasting == (255, 255, 0), axis=2).sum() == 0
+    assert np.all(coasting == (0, 255, 255), axis=2).sum() == 0
+
+
+def test_overlay_mirrors_arrow_direction() -> None:
+    img = np.zeros((720, 1280, 3), np.uint8)
+    a = draw_overlay(img, _info(_vec_track()))
+    b = draw_overlay(img, replace_mirror(_info(_vec_track()), False))
+    assert a.tobytes() != b.tobytes()
+
+
+def test_overlay_labels_assigned_head() -> None:
+    img = np.zeros((720, 1280, 3), np.uint8)
+    without = draw_overlay(img, _info(_vec_track()))
+    with_head = draw_overlay(img, _info(_vec_track(), {3: 2}))
+    assert without.tobytes() != with_head.tobytes()
+
+
+def replace_mirror(info: OverlayInfo, mirror: bool) -> OverlayInfo:
+    from dataclasses import replace
+
+    return replace(info, mirror=mirror)
 
 
 def test_overlay_draws_without_mutating_input_and_marks_tracks() -> None:
@@ -122,3 +171,20 @@ def test_recording_writes_landmarks_only(tmp_path: Path) -> None:
     assert n == 30 and len(read_jsonl(out)) == 30
     assert "image" not in out.read_text()
     assert isinstance(Frame, type) and intrinsics().fx > 0
+
+
+def test_scale_info_scales_every_pixel_quantity() -> None:
+    info = _info(_vec_track())
+    half = scale_info(info, 0.5)
+    t, h = info.tracks[0], half.tracks[0]
+    assert h.bbox_px == tuple(v / 2 for v in t.bbox_px)
+    assert h.centroid_px == (225.0, 130.0) and h.iod_px == 25.0
+    assert h.iris_px == ((215.0, 127.5), (235.0, 127.5))
+    assert h.head_dir == t.head_dir and half.boundaries == info.boundaries
+
+
+def test_overlay_at_camera_view_size_is_legible_and_has_vectors() -> None:
+    small = np.zeros((270, 480, 3), np.uint8)
+    out = draw_overlay(small, scale_info(_info(_vec_track(), {3: 1}), 480 / 1280))
+    assert out.shape == small.shape
+    assert np.all(out == (255, 255, 0), axis=2).sum() > 5  # head arrow still visible

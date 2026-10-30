@@ -63,6 +63,8 @@ class Tracking(_Model):
     high_conf: float = Field(ge=0.0, le=1.0)
     confirm_hits: PositiveInt
     max_coast_s: PositiveFloat
+    liveness_blink: float = Field(ge=0.0, le=1.0)
+    liveness_move_px: PositiveFloat
 
 
 class OneEuro(_Model):
@@ -74,8 +76,7 @@ class OneEuro(_Model):
 class Attention(_Model):
     scorer: str
     ipd_m: PositiveFloat
-    k_yaw_deg: PositiveFloat
-    k_pitch_deg: PositiveFloat
+    eye_radius_ratio: float = Field(gt=0.0, le=1.0)
     eye_weight_iod_min_px: PositiveFloat
     eye_weight_iod_full_px: PositiveFloat
     look_target_pitch_deg: float
@@ -112,14 +113,6 @@ class Attention(_Model):
     @property
     def softness_rad(self) -> float:
         return math.radians(self.softness_deg)
-
-    @property
-    def k_yaw_rad(self) -> float:
-        return math.radians(self.k_yaw_deg)
-
-    @property
-    def k_pitch_rad(self) -> float:
-        return math.radians(self.k_pitch_deg)
 
 
 class Limits(_Model):
@@ -179,6 +172,15 @@ class Render(_Model):
     rate_hz: PositiveInt
     debug_rate_hz: PositiveInt
     allow_lan: bool
+    camera_view: bool
+    camera_view_fps: PositiveInt
+    camera_view_width: PositiveInt
+
+    @model_validator(mode="after")
+    def _check(self) -> Render:
+        if self.camera_view and self.allow_lan:
+            raise ValueError("render.camera_view is localhost only; disable render.allow_lan")
+        return self
 
 
 class Observability(_Model):

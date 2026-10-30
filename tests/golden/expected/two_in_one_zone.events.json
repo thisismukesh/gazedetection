@@ -1,28 +1,28 @@
 [
  {
   "type": "GazeAcquired",
-  "t": 0.367,
+  "t": 1.7,
   "track_id": 1,
   "zone_id": 1
  },
  {
   "type": "GazeAcquired",
-  "t": 0.367,
+  "t": 1.7,
   "track_id": 2,
   "zone_id": 1
  },
  {
   "type": "GazeLost",
-  "t": 1.367,
+  "t": 2.867,
   "track_id": 1,
   "zone_id": 1,
-  "az_rel_rad": 0.172,
+  "az_rel_rad": 0.167,
   "el_rad": -0.0,
   "distance_m": null
  },
  {
   "type": "GazeRegained",
-  "t": 4.433,
+  "t": 5.933,
   "track_id": 1,
   "zone_id": 1
  }

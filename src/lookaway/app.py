@@ -13,9 +13,12 @@ import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
+from typing import cast
 
+import cv2
 import numpy as np
 import structlog
+from numpy.typing import NDArray
 
 from lookaway.capture.base import parse_source
 from lookaway.capture.replay import ReplaySource
@@ -42,7 +45,12 @@ from lookaway.events import (
 )
 from lookaway.observability.journal import Journal
 from lookaway.observability.metrics import Metrics
-from lookaway.observability.overlay import OverlayInfo, OverlayWindow
+from lookaway.observability.overlay import (
+    OverlayInfo,
+    OverlayWindow,
+    draw_overlay,
+    scale_info,
+)
 from lookaway.perception.replay import ReplayPerception
 from lookaway.pipeline import Pipeline, build_pipeline
 from lookaway.render import protocol
@@ -201,11 +209,19 @@ async def run_app(
         extras.append(
             asyncio.create_task(
                 _overlay_loop(
-                    cfg, src, pipeline, metrics, clock, feed, modes, targets, window, stop
+                    cfg, src, pipeline, metrics, clock, assigner, feed, modes, targets, window, stop
                 )
             )
         )
         extras.append(asyncio.create_task(_debug_loop(cfg, pipeline, metrics, clock, bridge, stop)))
+    if cfg.render.camera_view:
+        extras.append(
+            asyncio.create_task(
+                _camera_loop(
+                    cfg, src, pipeline, metrics, clock, assigner, feed, modes, targets, bridge, stop
+                )
+            )
+        )
     try:
         await _control_loop(heads, clock, cfg.control.rate_hz, stop)
     finally:
@@ -249,12 +265,40 @@ def _maybe_journal(cfg: Config, bus: EventBus) -> Journal | None:
     return journal
 
 
+def _overlay_info(
+    cfg: Config,
+    pipeline: Pipeline,
+    metrics: Metrics,
+    clock: Clock,
+    assigner: HeadAssigner,
+    modes: dict[int, str],
+    targets: dict[int, int | None],
+) -> OverlayInfo:
+    snap = metrics.snapshot(clock.now())
+    return OverlayInfo(
+        tracks=list(pipeline.debug),
+        boundaries=cfg.zones.boundaries,
+        head_modes={k: modes.get(k, "idle") for k in range(cfg.zones.count)},
+        head_targets=targets,
+        fps=snap.get("fps_perception", 0.0),
+        p95_ms=metrics.latency("lat.total", clock.now())["p95"],
+        mirror=cfg.capture.mirror_display,
+        assignments=assigner.assignments(),
+    )
+
+
+def _frame_image(feed: _Feed, blank: NDArray[np.uint8]) -> NDArray[np.uint8]:
+    frame = feed.get()
+    return frame.image if frame is not None and frame.image.size else blank
+
+
 async def _overlay_loop(
     cfg: Config,
     src: CameraSource,
     pipeline: Pipeline,
     metrics: Metrics,
     clock: Clock,
+    assigner: HeadAssigner,
     feed: _Feed,
     modes: dict[int, str],
     targets: dict[int, int | None],
@@ -264,22 +308,46 @@ async def _overlay_loop(
     """Runs on the main thread: OpenCV GUI calls must stay off worker threads (macOS)."""
     blank = np.zeros((src.info.height, src.info.width, 3), np.uint8)
     while not stop.is_set():
-        frame = feed.get()
-        image = frame.image if frame is not None and frame.image.size else blank
-        snap = metrics.snapshot(clock.now())
-        info = OverlayInfo(
-            tracks=list(pipeline.debug),
-            boundaries=cfg.zones.boundaries,
-            head_modes={k: modes.get(k, "idle") for k in range(cfg.zones.count)},
-            head_targets=targets,
-            fps=snap.get("fps_perception", 0.0),
-            p95_ms=metrics.latency("lat.total", clock.now())["p95"],
-            mirror=cfg.capture.mirror_display,
-        )
-        if not window.show(image, info):
+        info = _overlay_info(cfg, pipeline, metrics, clock, assigner, modes, targets)
+        if not window.show(_frame_image(feed, blank), info):
             stop.set()
             return
         await asyncio.sleep(1 / 30)
+
+
+_JPEG_QUALITY = 70
+
+
+async def _camera_loop(
+    cfg: Config,
+    src: CameraSource,
+    pipeline: Pipeline,
+    metrics: Metrics,
+    clock: Clock,
+    assigner: HeadAssigner,
+    feed: _Feed,
+    modes: dict[int, str],
+    targets: dict[int, int | None],
+    bridge: RenderBridge,
+    stop: asyncio.Event,
+) -> None:
+    """Camera view (D11): annotated JPEGs to the browser. Encoded in memory, never stored."""
+    blank = np.zeros((src.info.height, src.info.width, 3), np.uint8)
+    period = 1.0 / cfg.render.camera_view_fps
+    while not stop.is_set():
+        if bridge.has_clients:
+            info = _overlay_info(cfg, pipeline, metrics, clock, assigner, modes, targets)
+            image = _frame_image(feed, blank)
+            scale = cfg.render.camera_view_width / image.shape[1]
+            small = cast(
+                NDArray[np.uint8],
+                cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA),
+            )
+            canvas = draw_overlay(small, scale_info(info, scale))  # draw at the final size
+            ok, buf = cv2.imencode(".jpg", canvas, [cv2.IMWRITE_JPEG_QUALITY, _JPEG_QUALITY])
+            if ok:
+                bridge.publish_frame(buf.tobytes())
+        await asyncio.sleep(period)
 
 
 async def _debug_loop(

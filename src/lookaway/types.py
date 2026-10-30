@@ -100,6 +100,8 @@ class AttentionSample:
     raw_score: float
     eyes_closed: bool
     quality: float
+    head_dir: tuple[float, float, float] = (0.0, 0.0, -1.0)  # for the overlay
+    gaze_dir: tuple[float, float, float] = (0.0, 0.0, -1.0)
 
 
 class AttentionScorer(Protocol):

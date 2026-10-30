@@ -24,6 +24,9 @@ Format: Given / When / Then. Test names use the ID, e.g. `test_AC_SM_03_blink_do
 - **AC-TRK-03** Given a face missing longer than `max_coast_s`, when it reappears, then it gets a new ID never used before in the run.
 - **AC-TRK-04** Given a new face seen for fewer than `confirm_hits` frames, then the track is unconfirmed and produces no attention events.
 
+- **AC-TRK-05** (D12) Given a face that never blinks and never moves (a poster), when it appears to look at the camera and then away, then no attention or head events are produced and the camera view shows it as static.
+- **AC-TRK-06** (D12) Given a track that blinks, or whose centre moves at least `liveness_move_px`, then it becomes live and behaves normally from then on; it stays live if it later holds still.
+
 ## Attention scoring
 
 - **AC-ATT-01** Given a synthetic frontal face at the image centre looking at the camera, then `angle_to_cam < 5°` and `raw_score > 0.9`.
@@ -82,6 +85,10 @@ Format: Given / When / Then. Test names use the ID, e.g. `test_AC_SM_03_blink_do
 - **AC-REN-01** Given a client connects, then its first message is `snapshot`, before any `head_state`.
 - **AC-REN-02** Given the client disconnects mid-run, then the perception loop keeps its frame rate and no exception escapes.
 - **AC-REN-03** Given `web/pose.js`, when yaw = 0.5 and pitch = 0.3, then `rotation.y = 0.5`, `rotation.x = -0.3`, `rotation.order = "YXZ"` (`node --test web/`).
+
+- **AC-REN-04** Given `render.camera_view = true` and a connected client, then binary JPEG messages arrive after the `snapshot`, at most `camera_view_fps` per second, and none are sent when no client is connected.
+- **AC-REN-05** Given `render.camera_view = true` and `render.allow_lan = true`, then the config is rejected.
+- **AC-OBS-01** Given a track with a head direction and gaze direction, then the overlay draws a head arrow, a gaze arrow and the iris points on it, and draws nothing extra for a coasting track.
 
 ## System
 

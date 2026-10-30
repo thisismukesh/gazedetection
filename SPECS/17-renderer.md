@@ -16,6 +16,8 @@ Server to client:
   `{"type": "debug", "t", "tracks": [{"id", "zone", "score", "state"}], "fps", "latency_ms": {"p50", "p95"}}`
   Never contains images or landmarks.
 
+- Binary messages (after `snapshot`, only when `render.camera_view` is on): one JPEG of the camera frame with the overlay drawn on it (track boxes, score bars, head direction in cyan, gaze direction in yellow, iris points, assigned head), at `render.camera_view_fps`, `render.camera_view_width` pixels wide, mirrored when `capture.mirror_display`. Sent only while a client is connected.
+
 Client to server: `{"type": "hello", "client": "three"}`.
 
 Message schemas live in `render/protocol.py` and are covered by contract tests.
@@ -24,6 +26,7 @@ Message schemas live in `render/protocol.py` and are covered by contract tests.
 
 - `index.html` + `main.js` (Three.js, loaded from a pinned CDN version or vendored).
 - Loads `assets/heads.glb` if present; otherwise draws procedural heads (sphere plus a nose cone so direction is readable).
+- Layout: the camera view sits at the top middle of the page; the heads sit below it, shifted down so the two never overlap.
 - Heads are placed left to right as zone 0, 1, 2 from the audience's view.
 - Pose mapping lives in `web/pose.js` as a pure function: `rotation.order = "YXZ"`, `rotation.y = yaw`, `rotation.x = -pitch`. With the Three.js camera looking down -z at heads that face +z, positive yaw turns a face toward screen right (audience's right) and positive pitch tilts it up.
 - Interpolates toward the latest state with critical damping. Target 60 FPS.

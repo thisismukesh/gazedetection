@@ -75,3 +75,22 @@ def test_non_loopback_host_requires_allow_lan(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         RenderBridge("0.0.0.0", 0, tmp_path, 3, 1.0, 0.5, 60, False, lambda: 0.0)
     RenderBridge("0.0.0.0", 0, tmp_path, 3, 1.0, 0.5, 60, True, lambda: 0.0)
+
+
+async def test_AC_REN_04_binary_frames_follow_snapshot_and_need_a_client(
+    bridge: RenderBridge,
+) -> None:
+    bridge.publish_frame(b"\xff\xd8nobody-listening")  # no client: must be a no-op, not an error
+    assert bridge.has_clients is False
+    async with connect(f"ws://127.0.0.1:{bridge.port}/") as ws:
+        first = await ws.recv()
+        assert isinstance(first, str) and json.loads(first)["type"] == "snapshot"
+        await asyncio.sleep(0.05)
+        assert bridge.has_clients is True
+        bridge.publish_frame(b"\xff\xd8frame")
+        got: object = None
+        for _ in range(20):  # head_state messages may interleave
+            got = await ws.recv()
+            if isinstance(got, bytes):
+                break
+        assert got == b"\xff\xd8frame"

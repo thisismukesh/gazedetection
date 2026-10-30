@@ -14,7 +14,7 @@ IoU and centroid matching with the Hungarian algorithm, plus a second pass for l
 
 The tracker runs on the full frame. Zone is an attribute assigned afterward (SPECS/15), so a person walking across zones keeps one ID.
 
-Only confirmed tracks are passed to zones and attention.
+Only confirmed, **live** tracks are passed to zones and attention (D12). A track is live once, since it began, either eye's blink score exceeded `tracking.liveness_blink` or its face centre spread reached `tracking.liveness_move_px` in x or y. Liveness is sticky. This rejects posters, masks and still pictures.
 
 ## Output
 

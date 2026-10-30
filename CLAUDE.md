@@ -104,7 +104,8 @@ Adding a runtime dependency requires updating the table in `SPECS/02-architectur
 ```bash
 uv sync                                                   # install
 uv run lookaway fetch-models                              # download models with SHA-256 check
-uv run lookaway run                                       # live demo, webcam 0, opens the heads
+uv run lookaway run                                       # live demo, webcam 0, opens the page
+# or double-click "Look Away.command" (no terminal needed)
 uv run lookaway run --overlay                             # plus the OpenCV debug window (D toggles, Q quits)
 uv run lookaway run --config config/demo.toml --source video:path/to/clip.mp4
 uv run lookaway replay tests/fixtures/landmarks/two_people.jsonl   # no camera, no model

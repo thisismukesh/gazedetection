@@ -117,3 +117,47 @@ live samples; the M0 tuning study (SPECS/40) replaces them.
 **Consequences.** `angle_to_cam_rad` stays the true angle to the camera; only the score uses the
 offset target. The physical rig uses offset 0. A real look-away needs roughly 28 degrees or more
 off the display to trigger, which is the trade-off the tuning study should settle.
+
+## D11 Camera view in the browser, localhost only (2026-10-29)
+
+**Context.** The project lead wants to see what the camera sees, with the head and gaze vectors
+being tracked, on the same page as the heads.
+
+**Decision.** The app can stream a small JPEG of the camera frame, with the overlay drawn on it,
+to the browser over the loopback WebSocket (`render.camera_view`, on by default in the demo).
+Frames are encoded in memory, sent to connected clients and dropped. They are never written to
+disk or sent anywhere else. The option is refused when `render.allow_lan = true`.
+
+**Consequences.** SPECS/21 P1 and P2 gain this exception. `render.camera_view = false` restores
+the old behaviour. The camera view is a debugging and demo aid, not part of the installation.
+
+## D12 Static faces are not people (2026-10-29)
+
+**Context.** The first run in a real room detected a face on a poster behind the viewer (the
+Landmarker finds masks and printed faces). The poster was tracked, assigned a head and stared at
+whenever its apparent pose flickered.
+
+**Decision.** A confirmed track must prove it is alive before it takes part in attention, zones or
+head assignment: it must blink (either eye above `tracking.liveness_blink`) or move its face
+centre by at least `tracking.liveness_move_px` in x or y since the track began. Once alive a track
+stays alive. Non-live tracks are drawn greyed out as `static?` in the camera view and produce no
+events.
+
+**Consequences.** A new person's head starts reacting after their first blink or small movement
+(normally well under two seconds). A truly motionless, never-blinking person is ignored until they
+do either. Printed faces, masks and screens showing a still picture are ignored.
+
+## D13 Eye angle from eyeball geometry, measured against the corner line (2026-10-29)
+
+**Context.** Live use showed the gaze arrows disagreeing with where the eyes were looking,
+especially vertically. The old term measured the iris against the eyelid midpoint (the lids move
+with the eye, so the reference moves) and used a linear gain of 55 and 40 degrees per eye width,
+about 2.5 times too small for a real eyeball.
+
+**Decision.** Measure the iris against the eye-corner line in the eye's own rotated axes,
+normalised by eye width on both axes, and convert with `asin(offset / eye_radius_ratio)`.
+`k_yaw_deg` and `k_pitch_deg` are replaced by `attention.eye_radius_ratio` (0.40).
+
+**Consequences.** Gaze reaches larger angles from the same iris offsets, so eye-only glances count
+for more. The default is anthropometric, not tuned; the tuning study should refine it. SPECS/13
+step 3 and SPECS/18 change; AC-ATT-04 still holds (25 degrees of eye yaw is scored away).

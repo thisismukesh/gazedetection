@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+import numpy as np
+
 from lookaway.perception import geometry as geo
 from lookaway.types import AttentionSample, FaceObservation, Intrinsics
 
@@ -12,14 +14,18 @@ from lookaway.types import AttentionSample, FaceObservation, Intrinsics
 @dataclass(frozen=True, slots=True)
 class GeoParams:
     ipd_m: float
-    k_yaw_rad: float
-    k_pitch_rad: float
+    eye_radius_ratio: float
     eye_weight_iod_min_px: float
     eye_weight_iod_full_px: float
     look_target_pitch_rad: float
     cone_rad: float
     softness_rad: float
     blink_thresh: float
+
+
+def _unit(v: geo.Vec3) -> tuple[float, float, float]:
+    n = float(np.linalg.norm(v))
+    return (float(v[0] / n), float(v[1] / n), float(v[2] / n))
 
 
 class GeometricScorer:
@@ -34,7 +40,7 @@ class GeometricScorer:
         span = p.eye_weight_iod_full_px - p.eye_weight_iod_min_px
         w_dist = min(1.0, max(0.0, (obs.iod_px - p.eye_weight_iod_min_px) / span))
         w_eye = w_dist * (1.0 - (obs.blink[0] + obs.blink[1]) / 2.0)
-        eye_yaw, eye_pitch = geo.eye_offsets(obs, p.k_yaw_rad, p.k_pitch_rad)
+        eye_yaw, eye_pitch = geo.eye_offsets(obs, p.eye_radius_ratio)
         g = geo.gaze_direction(obs.R_cam_head, w_eye * eye_yaw, w_eye * eye_pitch)
         to_cam = -pos
         theta_cam = geo.angle_between(g, to_cam)
@@ -44,4 +50,5 @@ class GeometricScorer:
         raw = 1.0 / (1.0 + math.exp(-max(-60.0, min(60.0, x))))
         closed = obs.blink[0] > p.blink_thresh and obs.blink[1] > p.blink_thresh
         quality = min(1.0, obs.iod_px / p.eye_weight_iod_full_px) * obs.confidence
-        return AttentionSample(theta_cam, raw, closed, quality)
+        head = geo.forward_axis(obs.R_cam_head)
+        return AttentionSample(theta_cam, raw, closed, quality, _unit(head), _unit(g))

@@ -51,20 +51,24 @@ def face_position(centroid_px: Vec2, iod_px: float, intr: Intrinsics, ipd_m: flo
     return ray * z
 
 
-def eye_offsets(obs: FaceObservation, k_yaw_rad: float, k_pitch_rad: float) -> tuple[float, float]:
-    """Width-weighted mean (eye_yaw, eye_pitch) in radians from iris offsets (SPECS/13 step 3)."""
+def eye_offsets(obs: FaceObservation, eye_radius_ratio: float) -> tuple[float, float]:
+    """Width-weighted mean (eye_yaw, eye_pitch) in radians. SPECS/13 step 3, D13.
+
+    The iris offset is measured against the eye-corner line in the eye's own rotated axes, so it
+    follows head roll, and converted with ``asin(offset / eye_radius_ratio)``.
+    """
     yaw_sum = pitch_sum = w_sum = 0.0
-    for iris, (c0, c1), (up, lo) in zip(
-        obs.iris_px, obs.eye_corners_px, obs.eye_lids_px, strict=True
-    ):
-        width = math.hypot(c1[0] - c0[0], c1[1] - c0[1])
-        height = abs(lo[1] - up[1])
-        if width <= 1e-6 or height <= 1e-6:
+    for iris, (c0, c1) in zip(obs.iris_px, obs.eye_corners_px, strict=True):
+        dx, dy = c1[0] - c0[0], c1[1] - c0[1]
+        width = math.hypot(dx, dy)
+        if width <= 1e-6:
             continue
-        u = (iris[0] - (c0[0] + c1[0]) / 2) / width
-        v = (iris[1] - (up[1] + lo[1]) / 2) / height
-        yaw_sum += width * k_yaw_rad * u
-        pitch_sum += width * k_pitch_rad * v
+        ex, ey = (dx / width, dy / width), (-dy / width, dx / width)  # ey points down
+        rx, ry = iris[0] - (c0[0] + c1[0]) / 2, iris[1] - (c0[1] + c1[1]) / 2
+        u = (rx * ex[0] + ry * ex[1]) / width
+        v = (rx * ey[0] + ry * ey[1]) / width
+        yaw_sum += width * math.asin(max(-1.0, min(1.0, u / eye_radius_ratio)))
+        pitch_sum += width * math.asin(max(-1.0, min(1.0, v / eye_radius_ratio)))
         w_sum += width
     if w_sum == 0.0:
         return 0.0, 0.0

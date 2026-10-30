@@ -62,6 +62,7 @@ def make_obs(
     confidence: float = 1.0,
     intr: Intrinsics | None = None,
     iod_px: float | None = None,
+    roll_deg: float = 0.0,
 ) -> FaceObservation:
     """Head angles default to 'facing the camera'; pass degrees to override."""
     intr = intr or intrinsics()
@@ -70,13 +71,25 @@ def make_obs(
     pitch = pitch0 if head_pitch_deg is None else math.radians(head_pitch_deg)
     iod = iod_px if iod_px is not None else intr.fx * _CFG.attention.ipd_m / distance_m
     R = head_rotation(yaw, pitch)
-    u = eye_yaw_deg / _CFG.attention.k_yaw_deg
-    v = eye_pitch_deg / _CFG.attention.k_pitch_deg
+    ratio = _CFG.attention.eye_radius_ratio
+    u = ratio * math.sin(math.radians(eye_yaw_deg))  # inverts SPECS/13 step 3
+    v = ratio * math.sin(math.radians(eye_pitch_deg))
     ew, eh = EYE_WIDTH_PER_IOD * iod, EYE_HEIGHT_PER_IOD * iod
     centres = ((x_px - iod / 2, y_px), (x_px + iod / 2, y_px))
-    iris = tuple((cx + u * ew, cy + v * eh) for cx, cy in centres)
+    iris = tuple((cx + u * ew, cy + v * ew) for cx, cy in centres)
     corners = tuple(((cx - ew / 2, cy), (cx + ew / 2, cy)) for cx, cy in centres)
     lids = tuple(((cx, cy - eh / 2), (cx, cy + eh / 2)) for cx, cy in centres)
+    if roll_deg:  # in-plane head roll: rotate the eye geometry about the face centre
+        a = math.radians(roll_deg)
+        ca, sa = math.cos(a), math.sin(a)
+
+        def rot(p: tuple[float, float]) -> tuple[float, float]:
+            dx, dy = p[0] - x_px, p[1] - y_px
+            return (x_px + ca * dx - sa * dy, y_px + sa * dx + ca * dy)
+
+        iris = tuple(rot(p) for p in iris)
+        corners = tuple((rot(c[0]), rot(c[1])) for c in corners)
+        lids = tuple((rot(c[0]), rot(c[1])) for c in lids)
     mat: Mat3 = tuple(tuple(float(x) for x in row) for row in R)  # type: ignore[assignment]
     return FaceObservation(
         t=t,

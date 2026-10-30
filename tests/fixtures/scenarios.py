@@ -5,6 +5,7 @@ Run ``uv run python -m tests.fixtures.scenarios`` to (re)generate tests/fixtures
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 from lookaway.perception.replay import write_jsonl
@@ -16,9 +17,14 @@ Record = tuple[int, float, list[FaceObservation]]
 OUT = Path(__file__).parent / "landmarks"
 
 
+def sway(t: float) -> float:
+    """Natural postural sway in pixels: real people are never perfectly still (D12)."""
+    return 6.0 * math.sin(2 * math.pi * t / 2.5)
+
+
 def _person(t: float, x: float, away: bool, dist: float = 1.2) -> FaceObservation:
     kw: dict[str, float] = {"head_yaw_deg": 40.0, "head_pitch_deg": 0.0} if away else {}
-    return make_obs(t=t, x_px=x, distance_m=dist, **kw)
+    return make_obs(t=t, x_px=x + sway(t), distance_m=dist, **kw)
 
 
 def single_look_away(
@@ -42,12 +48,12 @@ def two_people(seconds: float = 10.0) -> list[Record]:
     return out
 
 
-def two_in_one_zone(seconds: float = 8.0) -> list[Record]:
-    """Two people in the middle zone; only the left-hand one (x=480) looks away, 1 s to 4 s."""
+def two_in_one_zone(seconds: float = 9.0) -> list[Record]:
+    """Two people in the middle zone; only the left-hand one (x=480) looks away, 2.5 s to 5.5 s."""
     out: list[Record] = []
     for i in range(round(seconds * FPS)):
         t = i / FPS
-        faces = [_person(t, 480.0, 1.0 <= t < 4.0), _person(t, 700.0, False)]
+        faces = [_person(t, 480.0, 2.5 <= t < 5.5), _person(t, 700.0, False)]
         out.append((i, t, faces))
     return out
 
@@ -59,7 +65,7 @@ def blink_storm(seconds: float = 8.0) -> list[Record]:
         t = i / FPS
         closed = (t % 0.8) < 0.3
         blink = (0.9, 0.9) if closed else (0.05, 0.05)
-        out.append((i, t, [make_obs(t=t, x_px=520.0, distance_m=1.2, blink=blink)]))
+        out.append((i, t, [make_obs(t=t, x_px=520.0 + sway(t), distance_m=1.2, blink=blink)]))
     return out
 
 
@@ -70,7 +76,7 @@ def phone_glance_down(seconds: float = 9.0) -> list[Record]:
         t = i / FPS
         down = 3.0 <= t < 3.2 or 5.0 <= t < 7.0
         kw: dict[str, float] = {"head_pitch_deg": 30.0, "eye_pitch_deg": 15.0} if down else {}
-        out.append((i, t, [make_obs(t=t, x_px=560.0, distance_m=1.2, **kw)]))
+        out.append((i, t, [make_obs(t=t, x_px=560.0 + sway(t), distance_m=1.2, **kw)]))
     return out
 
 
@@ -97,8 +103,20 @@ def profile_turn(seconds: float = 8.0) -> list[Record]:
                 make_obs(t=t, x_px=640.0, distance_m=1.2, head_yaw_deg=yaw, head_pitch_deg=0.0)
             ]
         else:
-            faces = [make_obs(t=t, x_px=640.0, distance_m=1.2)]
+            faces = [make_obs(t=t, x_px=640.0 + sway(t), distance_m=1.2)]
         out.append((i, t, faces))
+    return out
+
+
+def static_poster(seconds: float = 8.0) -> list[Record]:
+    """A printed face on a wall: perfectly still, never blinks, and its apparent pose flips."""
+    out: list[Record] = []
+    for i in range(round(seconds * FPS)):
+        t = i / FPS
+        kw: dict[str, float] = (
+            {"head_yaw_deg": 40.0, "head_pitch_deg": 0.0} if 3.0 <= t < 6.0 else {}
+        )
+        out.append((i, t, [make_obs(t=t, x_px=380.0, distance_m=1.5, **kw)]))
     return out
 
 
@@ -110,6 +128,7 @@ SCENARIOS = {
     "phone_glance_down": phone_glance_down,
     "boundary_walker": boundary_walker,
     "profile_turn": profile_turn,
+    "static_poster": static_poster,
 }
 
 

@@ -25,8 +25,7 @@ def scorer_from_config(a: Attention) -> GeometricScorer:
     return GeometricScorer(
         GeoParams(
             ipd_m=a.ipd_m,
-            k_yaw_rad=a.k_yaw_rad,
-            k_pitch_rad=a.k_pitch_rad,
+            eye_radius_ratio=a.eye_radius_ratio,
             eye_weight_iod_min_px=a.eye_weight_iod_min_px,
             eye_weight_iod_full_px=a.eye_weight_iod_full_px,
             look_target_pitch_rad=a.look_target_pitch_rad,

@@ -16,15 +16,19 @@ from lookaway.types import (
     AttentionScorer,
     AttentionState,
     Box,
+    FaceObservation,
     FacePerception,
     Frame,
     ScoredSample,
     SourceInfo,
     Track,
     Tracker,
+    Vec2,
     ZoneMap,
 )
 from lookaway.zones.zone_map import SectorZoneMap
+
+Vec3 = tuple[float, float, float]
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +38,35 @@ class DebugTrack:
     score: float
     state: AttentionState
     bbox_px: Box
+    centroid_px: Vec2 = (0.0, 0.0)
+    iod_px: float = 0.0
+    head_dir: Vec3 | None = None  # None while the track is coasting
+    gaze_dir: Vec3 | None = None
+    iris_px: tuple[Vec2, Vec2] | None = None
+    live: bool = True  # False: a still, never-blinking face such as a poster (D12)
+
+
+@dataclass(slots=True)
+class _Liveness:
+    """Has this face ever blinked or moved? Posters, masks and still pictures never do."""
+
+    min_x: float
+    max_x: float
+    min_y: float
+    max_y: float
+    live: bool = False
+
+    def update(self, obs: FaceObservation, blink_thresh: float, move_px: float) -> bool:
+        x, y = obs.centroid_px
+        self.min_x, self.max_x = min(self.min_x, x), max(self.max_x, x)
+        self.min_y, self.max_y = min(self.min_y, y), max(self.max_y, y)
+        if (
+            max(obs.blink) > blink_thresh
+            or self.max_x - self.min_x >= move_px
+            or self.max_y - self.min_y >= move_px
+        ):
+            self.live = True
+        return self.live
 
 
 class Pipeline:
@@ -51,10 +84,14 @@ class Pipeline:
         bus: EventBus,
         clock: Clock | None = None,
         metrics: Metrics | None = None,
+        liveness: tuple[float, float] = (0.35, 8.0),
     ) -> None:
+        self._liveness_cfg = liveness
+        self._liveness: dict[int, _Liveness] = {}
         self._clock = clock
         self._metrics = metrics
         self.debug: list[DebugTrack] = []
+        self._vectors: dict[int, tuple[Vec3, Vec3]] = {}
         self._info = info
         self._perception = perception
         self._tracker = tracker
@@ -74,27 +111,61 @@ class Pipeline:
         t = frame.t_capture
         t_start = self._clock.now() if self._clock is not None else None
         obs = self._perception.process(frame)
-        tracks = {tr.id: tr for tr in self._tracker.update(obs, t) if tr.confirmed}
+        confirmed = {tr.id: tr for tr in self._tracker.update(obs, t) if tr.confirmed}
+        live_ids = self._update_liveness(confirmed)
+        tracks = {i: tr for i, tr in confirmed.items() if i in live_ids}
         events: list[Event] = []
         scores: dict[int, float] = {}
+        self._vectors = {}
         for tid, tr in tracks.items():
             events += self._step_track(t, tid, tr, scores)
         for tid in [i for i in self._machines if i not in tracks]:
             events += self._step_orphan(t, tid)
         self.debug = [
-            DebugTrack(
-                tid,
-                self._last_zone[tid],
-                scores.get(tid, 0.0),
-                self._machines[tid].state,
-                tr.bbox_px,
-            )
-            for tid, tr in tracks.items()
-            if tid in self._machines
+            self._debug_track(tid, tr, scores) if tid in tracks else self._static_track(tr)
+            for tid, tr in confirmed.items()
+            if tid in self._machines or tid not in tracks
         ]
         self._bus.publish_all(events)
         self._record(frame, t_start, len(obs), len(tracks), events)
         return events
+
+    def _update_liveness(self, confirmed: dict[int, Track]) -> set[int]:
+        blink_thresh, move_px = self._liveness_cfg
+        for tid in [i for i in self._liveness if i not in confirmed]:
+            del self._liveness[tid]
+        live: set[int] = set()
+        for tid, tr in confirmed.items():
+            rec = self._liveness.get(tid)
+            if rec is None:
+                x, y = tr.centroid_px
+                rec = self._liveness[tid] = _Liveness(x, x, y, y)
+            if tr.last_obs is not None:
+                rec.update(tr.last_obs, blink_thresh, move_px)
+            if rec.live:
+                live.add(tid)
+        return live
+
+    def _static_track(self, tr: Track) -> DebugTrack:
+        return DebugTrack(
+            tr.id, 0, 0.0, AttentionState.UNKNOWN, tr.bbox_px, tr.centroid_px, live=False
+        )
+
+    def _debug_track(self, tid: int, tr: Track, scores: dict[int, float]) -> DebugTrack:
+        vec = self._vectors.get(tid)
+        live = tr.last_obs is not None and vec is not None
+        return DebugTrack(
+            tid,
+            self._last_zone[tid],
+            scores.get(tid, 0.0),
+            self._machines[tid].state,
+            tr.bbox_px,
+            tr.centroid_px,
+            tr.last_obs.iod_px if tr.last_obs is not None else 0.0,
+            vec[0] if live and vec is not None else None,
+            vec[1] if live and vec is not None else None,
+            tr.last_obs.iris_px if live and tr.last_obs is not None else None,
+        )
 
     def _record(
         self, frame: Frame, t_start: float | None, faces: int, confirmed: int, events: list[Event]
@@ -125,6 +196,7 @@ class Pipeline:
         sample = self._scorer.score(tr.last_obs, self._info.intrinsics)
         score = self._filters[tid].filter(t, sample.raw_score)
         scores[tid] = score
+        self._vectors[tid] = (sample.head_dir, sample.gaze_dir)
         az, el = self._zones.bearing(zone, tr.centroid_px)
         return sm.step(t, ScoredSample(score, sample.eyes_closed, zone, az, el))
 
@@ -170,4 +242,5 @@ def build_pipeline(
         bus,
         clock,
         metrics,
+        (cfg.tracking.liveness_blink, cfg.tracking.liveness_move_px),
     )

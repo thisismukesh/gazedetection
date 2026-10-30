@@ -113,3 +113,76 @@ def test_zero_offset_matches_plain_angle_to_camera() -> None:
 
 def test_a_real_look_away_from_the_display_is_still_away() -> None:
     assert score(head_yaw_deg=35.0, head_pitch_deg=CFG.look_target_pitch_deg).raw_score < 0.1
+
+
+def test_sample_exposes_head_and_gaze_directions_for_the_overlay() -> None:
+    s = score(head_yaw_deg=0.0, head_pitch_deg=0.0)
+    assert np.allclose(s.head_dir, (0.0, 0.0, -1.0), atol=1e-9)
+    assert np.allclose(s.gaze_dir, s.head_dir, atol=1e-9)  # eyes centred
+    assert math.isclose(sum(c * c for c in s.gaze_dir), 1.0, rel_tol=1e-9)
+
+
+def test_gaze_dir_includes_the_eye_term_head_dir_does_not() -> None:
+    s = score(head_yaw_deg=0.0, head_pitch_deg=0.0, eye_yaw_deg=20.0, distance_m=0.9)
+    assert s.gaze_dir[0] > 0.3  # eyes looking toward +x of the head
+    assert abs(s.head_dir[0]) < 1e-9
+
+
+# --- D13: eye model -----------------------------------------------------------------------
+
+
+def _eye_angles(**kw: float) -> tuple[float, float]:
+    from lookaway.perception.geometry import eye_offsets
+
+    return tuple(  # type: ignore[return-value]
+        math.degrees(a) for a in eye_offsets(make_obs(**kw), CFG.eye_radius_ratio)
+    )
+
+
+def test_eye_angles_round_trip_through_the_eyeball_model() -> None:
+    yaw, pitch = _eye_angles(eye_yaw_deg=25.0, eye_pitch_deg=-15.0)
+    assert yaw == pytest.approx(25.0, abs=0.01) and pitch == pytest.approx(-15.0, abs=0.01)
+
+
+def test_eye_signs_looking_image_right_and_down_are_positive() -> None:
+    yaw, pitch = _eye_angles(eye_yaw_deg=20.0, eye_pitch_deg=20.0)
+    assert yaw > 0 and pitch > 0
+    s = score(head_yaw_deg=0.0, head_pitch_deg=0.0, eye_yaw_deg=20.0, eye_pitch_deg=20.0)
+    assert s.gaze_dir[0] > 0.2 and s.gaze_dir[1] > 0.2  # gaze vector: right and down
+
+
+def test_gain_matches_a_real_eyeball() -> None:
+    """A 30 degree eye rotation moves the iris by about 0.4 * sin(30) = 0.2 eye widths."""
+    obs = make_obs(eye_yaw_deg=30.0, distance_m=0.9)
+    (c0, c1), iris = obs.eye_corners_px[0], obs.iris_px[0]
+    u = (iris[0] - (c0[0] + c1[0]) / 2) / (c1[0] - c0[0])
+    assert u == pytest.approx(0.20, abs=0.01)
+
+
+def test_eye_angles_follow_head_roll() -> None:
+    flat = _eye_angles(eye_yaw_deg=18.0, eye_pitch_deg=10.0)
+    for roll in (-25.0, 15.0, 40.0):
+        rolled = _eye_angles(eye_yaw_deg=18.0, eye_pitch_deg=10.0, roll_deg=roll)
+        assert rolled == pytest.approx(flat, abs=0.01)
+
+
+def test_eyelid_landmarks_do_not_affect_the_eye_angle() -> None:
+    from dataclasses import replace
+
+    from lookaway.perception.geometry import eye_offsets
+
+    obs = make_obs(eye_yaw_deg=12.0, eye_pitch_deg=-8.0)
+    lids = tuple(((x, y + 5.0), (x, y - 3.0)) for (x, y), _ in obs.eye_lids_px)  # lids drift
+    moved = replace(obs, eye_lids_px=lids)  # type: ignore[arg-type]
+    assert eye_offsets(moved, CFG.eye_radius_ratio) == eye_offsets(obs, CFG.eye_radius_ratio)
+
+
+def test_extreme_iris_offset_is_clamped_not_nan() -> None:
+    from dataclasses import replace
+
+    from lookaway.perception.geometry import eye_offsets
+
+    obs = make_obs()
+    far = replace(obs, iris_px=((obs.iris_px[0][0] + 500, obs.iris_px[0][1]), obs.iris_px[1]))
+    yaw, pitch = eye_offsets(far, CFG.eye_radius_ratio)
+    assert math.isfinite(yaw) and math.isfinite(pitch) and abs(yaw) <= math.pi / 2

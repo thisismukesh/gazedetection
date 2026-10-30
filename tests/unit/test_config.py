@@ -90,3 +90,12 @@ def test_hash_stable_and_sensitive() -> None:
     assert config_sha256(a) == config_sha256(b)
     assert config_sha256(a) != config_sha256(load_config(source="video:x.mp4"))
     assert isinstance(a, Config)
+
+
+def test_AC_REN_05_camera_view_refused_on_lan(tmp_path: Path) -> None:
+    f = tmp_path / "o.toml"
+    f.write_text("[render]\nallow_lan = true\n")
+    with pytest.raises(ValidationError):
+        load_config(f)
+    f.write_text("[render]\nallow_lan = true\ncamera_view = false\n")
+    assert load_config(f).render.allow_lan is True

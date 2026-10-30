@@ -26,12 +26,13 @@ iou_gate = 0.2
 high_conf = 0.6
 confirm_hits = 3
 max_coast_s = 1.0
+liveness_blink = 0.35          # a blink this strong proves the face is alive
+liveness_move_px = 8.0         # or the face centre moving this far in x or y
 
 [attention]
 scorer = "geometric"
 ipd_m = 0.063
-k_yaw_deg = 55.0
-k_pitch_deg = 40.0
+eye_radius_ratio = 0.40         # eyeball radius / eye width: iris offset = ratio * sin(eye angle)
 eye_weight_iod_min_px = 15.0
 eye_weight_iod_full_px = 45.0
 look_target_pitch_deg = 8.0     # the display sits below the camera: people look this far below the lens
@@ -89,6 +90,9 @@ port = 8765
 rate_hz = 60
 debug_rate_hz = 10
 allow_lan = false
+camera_view = true             # stream the annotated camera frame to the browser (localhost only)
+camera_view_fps = 15
+camera_view_width = 480
 
 [observability]
 log_level = "INFO"

@@ -60,6 +60,15 @@ class RenderBridge:
         h = self._heads[e.head_id]
         h.mode, h.target_track = e.mode, e.target_track
 
+    @property
+    def has_clients(self) -> bool:
+        return bool(self._clients)
+
+    def publish_frame(self, jpeg: bytes) -> None:
+        """Camera view (D11): a binary message, dropped when nobody is connected."""
+        if self._clients:
+            broadcast(self._clients, jpeg)
+
     def publish_debug(self, message: str) -> None:
         if self._clients:
             broadcast(self._clients, message)

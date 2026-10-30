@@ -16,10 +16,10 @@ All steps are in the OpenCV camera frame.
 
 1. **Face position.** Ray through `centroid_px` using the intrinsics. Depth `z = fx · attention.ipd_m / iod_px`. Gives `p_cam`.
 2. **Head direction.** `f_head` = the head's forward axis from `R_cam_head`, with the sign pinned by AC-PER-05 so a frontal face gives `f_head` pointing toward the camera.
-3. **Eye offset.** Per eye:
-   - `u = (iris_x - mid_corners_x) / eye_width`
-   - `v = (iris_y - mid_lids_y) / eye_height`
-   - `eye_yaw = attention.k_yaw_deg · u`, `eye_pitch = attention.k_pitch_deg · v`
+3. **Eye offset.** Per eye, with corners `c0 -> c1` (always left to right in the image):
+   - `e_x = (c1 - c0) / |c1 - c0|`, `e_y = (-e_x.y, e_x.x)` (down). This makes the measurement follow head roll.
+   - `u = dot(iris - mid_corners, e_x) / eye_width`, `v = dot(iris - mid_corners, e_y) / eye_width`. The corner line, not the eyelids, is the reference, because the eyelids move with the eye. Both axes use the eye width as the scale.
+   - `eye_yaw = asin(clamp(u / attention.eye_radius_ratio, -1, 1))`, `eye_pitch = asin(clamp(v / attention.eye_radius_ratio, -1, 1))`. `eye_radius_ratio` is eyeball radius over corner-to-corner width (about 12 mm over 30 mm, so 0.40): a rotation of the eye by `theta` moves the iris centre by `radius * sin(theta)`.
    - Average the two eyes weighted by eye width.
 4. **Eye weight (distance and openness).**
    `w_eye = clamp((iod_px - attention.eye_weight_iod_min_px) / (attention.eye_weight_iod_full_px - attention.eye_weight_iod_min_px), 0, 1) · (1 - mean(blink))`.
@@ -38,7 +38,7 @@ The pipeline keeps one `OneEuroFilter` per track on `raw_score` (`attention.one_
 
 ## Tuning
 
-`k_yaw_deg`, `k_pitch_deg`, `cone_deg`, `softness_deg` are initial guesses. M0 tunes them (SPECS/40) and updates SPECS/18.
+`eye_radius_ratio`, `look_target_pitch_deg`, `cone_deg`, `softness_deg` are initial guesses. M0 tunes them (SPECS/40) and updates SPECS/18.
 
 ## Plug-ins (not in M1 to M3)
 

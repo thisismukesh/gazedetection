@@ -7,11 +7,28 @@
   <style>
     html, body { margin: 0; height: 100%; background: #0b0b0e; overflow: hidden; }
     canvas { display: block; width: 100vw; height: 100vh; }
+    #cam { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); display: none;
+           width: min(480px, 42vw); background: #14141a; border: 1px solid #2a2a33;
+           border-radius: 10px; overflow: hidden; box-shadow: 0 6px 24px rgba(0,0,0,.5); }
+    #cam canvas { display: block; width: 100%; height: auto; }
+    #cam .legend { display: flex; gap: 14px; justify-content: center; padding: 6px 10px;
+                   font: 11px ui-monospace, monospace; color: #9a9aa6; letter-spacing: .03em; }
+    .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px;
+          vertical-align: -1px; }
     #status { position: fixed; left: 12px; bottom: 10px; font: 12px ui-monospace, monospace;
               color: #8a8a96; letter-spacing: 0.04em; }
   </style>
 </head>
 <body>
+  <div id="cam">
+    <canvas id="camview" width="480" height="270"></canvas>
+    <div class="legend">
+      <span><i class="sw" style="background:#00e5ff"></i>head direction</span>
+      <span><i class="sw" style="background:#ffe600"></i>gaze</span>
+      <span><i class="sw" style="background:#50c850"></i>looking</span>
+      <span><i class="sw" style="background:#e63c3c"></i>away</span>
+    </div>
+  </div>
   <div id="status">connecting…</div>
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.js" } }

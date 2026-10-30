@@ -8,6 +8,9 @@ const HEAD_X = [-2.4, 0, 2.4];
 const SMOOTH_TIME = 0.08; // seconds; critically damped follow
 
 const statusEl = document.getElementById("status");
+const camPanel = document.getElementById("cam");
+const camCanvas = document.getElementById("camview");
+const camCtx = camCanvas.getContext("2d");
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
@@ -107,6 +110,29 @@ function setStatus(text) {
   statusEl.textContent = text;
 }
 
+let decoding = false;
+function drawCameraFrame(blob) {
+  if (decoding) return; // drop frames while the previous one is still decoding
+  decoding = true;
+  createImageBitmap(blob)
+    .then((bmp) => {
+      if (camCanvas.width !== bmp.width || camCanvas.height !== bmp.height) {
+        camCanvas.width = bmp.width;
+        camCanvas.height = bmp.height;
+      }
+      camCtx.drawImage(bmp, 0, 0);
+      bmp.close();
+      if (camPanel.style.display !== "block") {
+        camPanel.style.display = "block";
+        resize(); // the heads move down to make room
+      }
+    })
+    .catch(() => {})
+    .finally(() => {
+      decoding = false;
+    });
+}
+
 let backoff = 0.5;
 function connect() {
   const ws = new WebSocket(`ws://${location.host}/`);
@@ -114,6 +140,10 @@ function connect() {
     ws.send(JSON.stringify({ type: "hello", client: "three" }));
   };
   ws.onmessage = (ev) => {
+    if (typeof ev.data !== "string") {
+      drawCameraFrame(ev.data); // binary message: one annotated JPEG of the camera view
+      return;
+    }
     const msg = JSON.parse(ev.data);
     if (msg.type === "snapshot") {
       connected = true;
@@ -146,6 +176,10 @@ function resize() {
   const h = window.innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
+  // Shift the heads down just enough to clear the camera view (a touch lower without one).
+  const panelBottom = camPanel.style.display === "block" ? camPanel.getBoundingClientRect().bottom : 0;
+  const shift = panelBottom > 0 ? panelBottom * 0.3 : 0.03 * h;
+  camera.setViewOffset(w, h, 0, -shift, w, h);
   camera.updateProjectionMatrix();
 }
 window.addEventListener("resize", resize);
