@@ -25,8 +25,8 @@ All steps are in the OpenCV camera frame.
    `w_eye = clamp((iod_px - attention.eye_weight_iod_min_px) / (attention.eye_weight_iod_full_px - attention.eye_weight_iod_min_px), 0, 1) · (1 - mean(blink))`.
    With defaults (15 px, 45 px) the eye term is fully weighted up to about 1.3 m and about half weighted at 2.0 m (D2).
 5. **Gaze ray.** Rotate `f_head` by `w_eye · eye_yaw` about the head's vertical axis and `w_eye · eye_pitch` about its horizontal axis. Result `g`.
-6. **Angle to camera.** `theta = angle(g, -p_cam / |p_cam|)`. This compensates for people at the frame edge, who must turn to face the camera.
-7. **Score.** `raw_score = sigmoid((attention.cone_deg - theta_deg) / attention.softness_deg)`.
+6. **Angle to camera and to the look target.** `theta_cam = angle(g, -p_cam / |p_cam|)`, reported as `angle_to_cam_rad`. This compensates for people at the frame edge, who must turn to face the camera. In the laptop demo the heads are drawn on a display below the camera, so the point people look at is `attention.look_target_pitch_deg` below the lens: `d_target = Rx(look_target_pitch) · (-p_cam / |p_cam|)` (rotation toward +y, down, in the OpenCV frame) and `theta = angle(g, d_target)`. The physical rig sets the offset to 0.
+7. **Score.** `raw_score = sigmoid((attention.cone_deg - theta_deg) / attention.softness_deg)`, using the look-target angle `theta`.
 8. **Eyes closed.** `eyes_closed = blink_left > attention.blink_thresh and blink_right > attention.blink_thresh`.
 9. **Quality.** `min(1, iod_px / attention.eye_weight_iod_full_px) · obs.confidence`. Reported for the overlay and logs; not used in decisions in M1 to M3.
 

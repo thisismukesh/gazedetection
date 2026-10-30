@@ -57,8 +57,9 @@ k_yaw_deg = 55.0
 k_pitch_deg = 40.0
 eye_weight_iod_min_px = 15.0
 eye_weight_iod_full_px = 45.0
-cone_deg = 14.0
-softness_deg = 3.0
+look_target_pitch_deg = 8.0     # the display sits below the camera: people look this far below the lens
+cone_deg = 18.0
+softness_deg = 4.0
 blink_thresh = 0.5
 t_on = 0.65
 t_off = 0.35
@@ -88,6 +89,11 @@ release_on_regain = true
 regain_release_s = 0.4
 idle_sway_deg = 2.0
 idle_sway_period_s = 6.0
+wander_yaw_deg = 14.0
+wander_pitch_deg = 7.0
+wander_min_dwell_s = 0.7
+wander_max_dwell_s = 2.2
+wander_looking_ttl_s = 1.0       # a person counts as looking this long after the last LOOKING update
 
 [control.target_one_euro]
 min_cutoff = 0.8

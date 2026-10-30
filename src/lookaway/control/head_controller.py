@@ -9,6 +9,7 @@ from lookaway.attention.one_euro import OneEuroFilter
 from lookaway.control.motion import AxisMotion
 from lookaway.control.policy import HeadPolicy, PolicyOutput
 from lookaway.control.targeting import TargetParams, target_pose
+from lookaway.control.wander import Wander
 from lookaway.events import (
     EventBus,
     GazeLost,
@@ -32,6 +33,7 @@ class HeadController:
         target_filter: tuple[float, float, float],
         driver: HeadDriver,
         bus: EventBus,
+        wander: Wander,
     ) -> None:
         yaw_lim, pitch_lim, v_max, a_max = motion_limits
         self._id = head_id
@@ -43,6 +45,7 @@ class HeadController:
         self._dt = 1.0 / rate_hz
         self._driver = driver
         self._bus = bus
+        self._wander = wander
         self._f_az = OneEuroFilter(*target_filter)
         self._f_el = OneEuroFilter(*target_filter)
         self._mode = HeadMode.IDLE
@@ -56,7 +59,7 @@ class HeadController:
 
     def _pose(self, t: float, out: PolicyOutput) -> tuple[float, float]:
         if out.target_track is None:
-            return out.sway_yaw_rad, 0.0
+            return self._wander.target(t) if out.wander else (out.sway_yaw_rad, 0.0)
         if out.target_track != self._track:
             self._f_az.reset()
             self._f_el.reset()
@@ -72,7 +75,7 @@ class HeadController:
 
     def tick(self, t: float) -> HeadCommand:
         out = self._policy.output(t)
-        arrived = self._arrived(self._preview(out))
+        arrived = self._arrived(self._preview(t, out))
         out = self._policy.tick(t, arrived)
         pose = self._pose(t, out)
         self._announce(t, out)
@@ -83,10 +86,10 @@ class HeadController:
         self._driver.send(cmd)
         return cmd
 
-    def _preview(self, out: PolicyOutput) -> tuple[float, float]:
+    def _preview(self, t: float, out: PolicyOutput) -> tuple[float, float]:
         """Target pose for arrival checks, without advancing the target filters."""
         if out.target_track is None:
-            return out.sway_yaw_rad, 0.0
+            return self._wander.target(t) if out.wander else (out.sway_yaw_rad, 0.0)
         return target_pose(self._tp, out.az_rel_rad, out.el_rad)
 
     def _announce(self, t: float, out: PolicyOutput) -> None:

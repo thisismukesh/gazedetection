@@ -32,7 +32,7 @@ for missing track: machines[id].step(t, None, ...)
 - Capture thread per source writes into a single-slot buffer and overwrites stale frames. Dropped frames are counted.
 - Perception thread loops: take latest frame, process, publish events.
 - Main asyncio loop: control tick at `control.rate_hz`, render broadcast at `render.rate_hz`.
-- The debug overlay runs in the perception thread because OpenCV GUI calls must stay on one thread.
+- The debug overlay runs on the main thread (D8): macOS requires GUI calls there. The perception thread only hands it the latest frame and track state.
 
 ## Dependency rule
 

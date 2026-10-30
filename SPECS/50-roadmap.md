@@ -2,6 +2,8 @@
 
 Durations are estimates for one engineer.
 
+**Status (2026-10-29):** M1, M2 and M3 are implemented except the items that need people: the M0 tuning study, consented clips (AC-SYS-01, AC-PER-04), face fixture images (AC-PER-01, AC-PER-02), mannequin GLB assets and the signage contact. See README.md.
+
 ## M0 Spikes (1 week)
 
 - Measure MediaPipe Face Landmarker FPS and latency with 1 to 4 faces on the reference laptop.

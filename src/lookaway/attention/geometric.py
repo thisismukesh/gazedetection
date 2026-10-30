@@ -16,6 +16,7 @@ class GeoParams:
     k_pitch_rad: float
     eye_weight_iod_min_px: float
     eye_weight_iod_full_px: float
+    look_target_pitch_rad: float
     cone_rad: float
     softness_rad: float
     blink_thresh: float
@@ -35,9 +36,12 @@ class GeometricScorer:
         w_eye = w_dist * (1.0 - (obs.blink[0] + obs.blink[1]) / 2.0)
         eye_yaw, eye_pitch = geo.eye_offsets(obs, p.k_yaw_rad, p.k_pitch_rad)
         g = geo.gaze_direction(obs.R_cam_head, w_eye * eye_yaw, w_eye * eye_pitch)
-        theta = geo.angle_between(g, -pos)
+        to_cam = -pos
+        theta_cam = geo.angle_between(g, to_cam)
+        target = geo.pitch_down(to_cam, p.look_target_pitch_rad)
+        theta = geo.angle_between(g, target)
         x = (p.cone_rad - theta) / p.softness_rad
         raw = 1.0 / (1.0 + math.exp(-max(-60.0, min(60.0, x))))
         closed = obs.blink[0] > p.blink_thresh and obs.blink[1] > p.blink_thresh
         quality = min(1.0, obs.iod_px / p.eye_weight_iod_full_px) * obs.confidence
-        return AttentionSample(theta, raw, closed, quality)
+        return AttentionSample(theta_cam, raw, closed, quality)

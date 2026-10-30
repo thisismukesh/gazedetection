@@ -52,7 +52,7 @@ Format: Given / When / Then. Test names use the ID, e.g. `test_AC_SM_03_blink_do
 - **AC-ZONE-02** Given a track oscillating ±10 px across a boundary for 3 s, then its zone never changes.
 - **AC-ZONE-03** Given a track that crosses a boundary by more than `margin_px` and stays for at least `switch_s`, then its zone changes exactly once.
 - **AC-ZONE-04** (property) `az_rad` is strictly decreasing in raw pixel x, equals 0 at `cx`, and pixel to bearing to pixel round-trips within 1e-6 px.
-- **AC-ZONE-05** (property, D3) For any sequence of track positions, every confirmed track has exactly one owning zone at every step, and every `GazeLost` is handled by exactly one head.
+- **AC-ZONE-05** (property, D3) For any sequence of track positions, every confirmed track has exactly one owning zone at every step. ("Every `GazeLost` is handled by exactly one head" moved to AC-ASSIGN-06 under D6.)
 
 ## Head controller
 
@@ -64,6 +64,18 @@ Format: Given / When / Then. Test names use the ID, e.g. `test_AC_SM_03_blink_do
 - **AC-HEAD-06** Given head 1 holding track 7, when `TrackUpdated` shows track 7 owned by zone 2, then head 1 enters RETURN and head 2 does not change mode.
 - **AC-HEAD-07** Given head 1 holding a target whose `az_rel` moves from +2° to +6° over 1 s, then within 0.5 s after the move ends head 1's yaw is 24° ± 3°.
 - **AC-HEAD-08** (property) For any event sequence, every `HeadCommand` satisfies the position, velocity and acceleration limits within 1e-6 rad tolerance.
+
+- **AC-HEAD-09** (D7) Given head 1 IDLE and its person looking (recent LOOKING `TrackUpdated`), then the policy output has `wander = True` and the commanded yaw and pitch stay within `wander_*` limits while changing target over time. When the updates stop for `wander_looking_ttl_s`, then `wander = False`.
+- **AC-HEAD-10** (D7) Given head 1 in HOLD, when `TrackUpdated` with state AWAY keeps arriving for longer than `hold_s`, then the head stays in HOLD; `hold_s` after the last one it leaves HOLD.
+
+## Head assignment (D6)
+
+- **AC-ASSIGN-01** Given one person in zone 1, then head 1 is assigned and their events reach head 1 with `zone_id = 1`.
+- **AC-ASSIGN-02** Given two people in zone 1, then the second gets the nearest free head and their events carry that head's id.
+- **AC-ASSIGN-03** Given three people in one zone, then three distinct heads are assigned. A fourth person gets no head until a `TrackLost` frees one.
+- **AC-ASSIGN-04** Given an assigned person who moves into another zone, then they keep their head.
+- **AC-ASSIGN-05** Bearings are re-referenced to the assigned head's zone centre.
+- **AC-ASSIGN-06** (property) For any event sequence, every `GazeLost` yields at most one retargeted `GazeLost`, no two live tracks share a head, and every retargeted event names a valid head.
 
 ## Renderer
 

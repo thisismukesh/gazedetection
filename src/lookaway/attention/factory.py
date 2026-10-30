@@ -29,6 +29,7 @@ def scorer_from_config(a: Attention) -> GeometricScorer:
             k_pitch_rad=a.k_pitch_rad,
             eye_weight_iod_min_px=a.eye_weight_iod_min_px,
             eye_weight_iod_full_px=a.eye_weight_iod_full_px,
+            look_target_pitch_rad=a.look_target_pitch_rad,
             cone_rad=a.cone_rad,
             softness_rad=a.softness_rad,
             blink_thresh=a.blink_thresh,

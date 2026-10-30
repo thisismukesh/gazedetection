@@ -60,6 +60,10 @@ class RenderBridge:
         h = self._heads[e.head_id]
         h.mode, h.target_track = e.mode, e.target_track
 
+    def publish_debug(self, message: str) -> None:
+        if self._clients:
+            broadcast(self._clients, message)
+
     def attach(self, bus: EventBus) -> None:
         bus.subscribe(HeadModeChanged, self.on_mode_changed)
 

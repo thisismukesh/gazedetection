@@ -84,3 +84,32 @@ def test_quality_scales_with_iod_and_confidence() -> None:
     s = score(confidence=0.5)
     assert s.quality == pytest.approx(0.5)
     assert score(iod_px=CFG.eye_weight_iod_full_px / 2).quality == pytest.approx(0.5)
+
+
+def test_looking_at_display_below_camera_counts_as_looking() -> None:
+    """The heads are drawn below the lens: a head pitched down by the target offset is 'looking'."""
+    s = score(head_yaw_deg=0.0, head_pitch_deg=CFG.look_target_pitch_deg)
+    assert s.raw_score > 0.95
+    assert math.degrees(s.angle_to_cam_rad) == pytest.approx(CFG.look_target_pitch_deg, abs=0.5)
+
+
+def test_looking_up_is_not_looking_at_the_display() -> None:
+    up = score(head_yaw_deg=0.0, head_pitch_deg=-CFG.look_target_pitch_deg)
+    down = score(head_yaw_deg=0.0, head_pitch_deg=CFG.look_target_pitch_deg)
+    assert up.raw_score < down.raw_score
+
+
+def test_zero_offset_matches_plain_angle_to_camera() -> None:
+    from dataclasses import replace
+
+    from lookaway.attention.geometric import GeometricScorer
+
+    plain = GeometricScorer(replace(SCORER._p, look_target_pitch_rad=0.0))  # noqa: SLF001
+    obs = make_obs(head_yaw_deg=10.0, head_pitch_deg=0.0)
+    s = plain.score(obs, INTR)
+    expected = 1 / (1 + math.exp(-(CFG.cone_rad - s.angle_to_cam_rad) / CFG.softness_rad))
+    assert s.raw_score == pytest.approx(expected)
+
+
+def test_a_real_look_away_from_the_display_is_still_away() -> None:
+    assert score(head_yaw_deg=35.0, head_pitch_deg=CFG.look_target_pitch_deg).raw_score < 0.1

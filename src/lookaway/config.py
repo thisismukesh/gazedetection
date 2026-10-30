@@ -78,6 +78,7 @@ class Attention(_Model):
     k_pitch_deg: PositiveFloat
     eye_weight_iod_min_px: PositiveFloat
     eye_weight_iod_full_px: PositiveFloat
+    look_target_pitch_deg: float
     cone_deg: PositiveFloat
     softness_deg: PositiveFloat
     blink_thresh: float = Field(ge=0.0, le=1.0)
@@ -103,6 +104,10 @@ class Attention(_Model):
     @property
     def cone_rad(self) -> float:
         return math.radians(self.cone_deg)
+
+    @property
+    def look_target_pitch_rad(self) -> float:
+        return math.radians(self.look_target_pitch_deg)
 
     @property
     def softness_rad(self) -> float:
@@ -153,8 +158,19 @@ class Control(_Model):
     regain_release_s: PositiveFloat
     idle_sway_deg: float = Field(ge=0.0)
     idle_sway_period_s: PositiveFloat
+    wander_yaw_deg: float = Field(ge=0.0)
+    wander_pitch_deg: float = Field(ge=0.0)
+    wander_min_dwell_s: PositiveFloat
+    wander_max_dwell_s: PositiveFloat
+    wander_looking_ttl_s: PositiveFloat
     target_one_euro: OneEuro
     limits: Limits
+
+    @model_validator(mode="after")
+    def _check(self) -> Control:
+        if self.wander_min_dwell_s > self.wander_max_dwell_s:
+            raise ValueError("control.wander_min_dwell_s must be <= wander_max_dwell_s")
+        return self
 
 
 class Render(_Model):

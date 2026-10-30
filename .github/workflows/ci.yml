@@ -10,7 +10,11 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pyright
-      - run: uv run pytest -m "not integration and not manual" --cov=lookaway
+      - run: uv run pytest -m "not integration and not manual" --cov=lookaway --cov-fail-under=75
+      - name: coverage gate for pure modules (90%)
+        run: >
+          uv run coverage report --fail-under=90
+          --include="src/lookaway/attention/state_machine.py,src/lookaway/attention/one_euro.py,src/lookaway/zones/zone_map.py,src/lookaway/control/targeting.py,src/lookaway/control/motion.py,src/lookaway/control/policy.py,src/lookaway/control/assigner.py,src/lookaway/control/wander.py,src/lookaway/perception/geometry.py"
       - uses: actions/setup-node@v4
         with:
           node-version: 22

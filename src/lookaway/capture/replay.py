@@ -23,6 +23,7 @@ class ReplaySource:
         hfov_rad: float,
         fps: float,
         clock: Clock | None = None,
+        loop: bool = False,
     ):
         self._path = Path(path)
         self._info = SourceInfo(
@@ -31,6 +32,7 @@ class ReplaySource:
         self._stamps: list[tuple[int, float]] = []
         self._pos = 0
         self._clock = clock
+        self._loop = loop
         self._t0 = 0.0
 
     @property
@@ -44,7 +46,9 @@ class ReplaySource:
 
     def read(self) -> Frame | None:
         if self._pos >= len(self._stamps):
-            return None
+            if not (self._loop and self._clock is not None and self._stamps):
+                return None
+            self._pos, self._t0 = 0, self._clock.now()  # fallback demo: loop forever
         index, t = self._stamps[self._pos]
         stamp = t
         if self._clock is not None:

@@ -20,7 +20,7 @@ def test_default_loads() -> None:
 
 def test_degrees_converted_to_radians() -> None:
     cfg = load_config()
-    assert cfg.attention.cone_rad == pytest.approx(math.radians(14.0))
+    assert cfg.attention.cone_rad == pytest.approx(math.radians(cfg.attention.cone_deg))
     assert cfg.control.limits.yaw_rad == pytest.approx(math.radians(60.0))
     assert cfg.capture.hfov_rad == pytest.approx(math.radians(70.0))
 

@@ -9,8 +9,15 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from lookaway.events import Event, GazeLost, GazeRegained, TrackLost, TrackUpdated
-from lookaway.types import HeadMode
+from lookaway.events import (
+    Event,
+    GazeAcquired,
+    GazeLost,
+    GazeRegained,
+    TrackLost,
+    TrackUpdated,
+)
+from lookaway.types import AttentionState, HeadMode
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +30,7 @@ class PolicyParams:
     regain_release_s: float
     idle_sway_rad: float
     idle_sway_period_s: float
+    wander_looking_ttl_s: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +40,7 @@ class PolicyOutput:
     az_rel_rad: float
     el_rad: float
     sway_yaw_rad: float
+    wander: bool = False
 
 
 @dataclass(slots=True)
@@ -51,11 +60,16 @@ class HeadPolicy:
         self._next: _Target | None = None
         self._hold_start = 0.0
         self._release_at: float | None = None
+        self._stare_t = 0.0
+        self._looked_at_until = -math.inf
 
     # -- events -----------------------------------------------------------------------------
 
     def on_event(self, e: Event) -> None:
-        if isinstance(e, GazeLost) and e.zone_id == self._p.zone_id:
+        if isinstance(e, GazeAcquired):
+            if e.zone_id == self._p.zone_id:
+                self._mark_looked_at(e.t)
+        elif isinstance(e, GazeLost) and e.zone_id == self._p.zone_id:
             self._on_lost(e)
         elif isinstance(e, TrackUpdated):
             self._on_updated(e)
@@ -78,7 +92,13 @@ class HeadPolicy:
         else:
             self._next = new
 
+    def _mark_looked_at(self, t: float) -> None:
+        self._looked_at_until = t + self._p.wander_looking_ttl_s
+
     def _on_updated(self, e: TrackUpdated) -> None:
+        looking = e.state in (AttentionState.LOOKING, AttentionState.AWAY_PENDING)
+        if looking and e.zone_id == self._p.zone_id:
+            self._mark_looked_at(e.t)
         if self._next is not None and e.track_id == self._next.track:
             if e.zone_id != self._p.zone_id:
                 self._next = None
@@ -91,8 +111,12 @@ class HeadPolicy:
             self._to_return()
         elif not t.lost:
             t.az, t.el = e.az_rel_rad, e.el_rad
+            if self._mode is HeadMode.HOLD and e.state is AttentionState.AWAY:
+                self._stare_t = e.t
 
     def _on_regained(self, e: GazeRegained) -> None:
+        if e.zone_id == self._p.zone_id:
+            self._mark_looked_at(e.t)
         t = self._target
         if (
             self._p.release_on_regain
@@ -114,7 +138,7 @@ class HeadPolicy:
         if self._mode is HeadMode.ORIENT and arrived:
             self._mode, self._hold_start = HeadMode.HOLD, t
         elif self._mode is HeadMode.HOLD and (
-            t - self._hold_start >= self._p.hold_s
+            t - max(self._hold_start, self._stare_t) >= self._p.hold_s
             or (self._release_at is not None and t >= self._release_at)
         ):
             self._to_return(t)
@@ -145,8 +169,9 @@ class HeadPolicy:
     def _output(self, t: float) -> PolicyOutput:
         tg = self._target
         sway = 0.0
-        if self._mode is HeadMode.IDLE and self._p.idle_sway_rad > 0:
+        wander = self._mode is HeadMode.IDLE and t < self._looked_at_until
+        if self._mode is HeadMode.IDLE and not wander and self._p.idle_sway_rad > 0:
             sway = self._p.idle_sway_rad * math.sin(2 * math.pi * t / self._p.idle_sway_period_s)
         if tg is None:
-            return PolicyOutput(self._mode, None, 0.0, 0.0, sway)
+            return PolicyOutput(self._mode, None, 0.0, 0.0, sway, wander)
         return PolicyOutput(self._mode, tg.track, tg.az, tg.el, sway)

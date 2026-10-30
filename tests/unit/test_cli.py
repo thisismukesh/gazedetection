@@ -18,6 +18,6 @@ def test_replay_prints_gaze_events(tmp_path: Path, capsys: pytest.CaptureFixture
     assert "TrackUpdated" not in out
 
 
-def test_unimplemented_commands_exit_nonzero(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["bench"]) == 2
-    assert "not implemented" in capsys.readouterr().err
+def test_unknown_command_is_rejected() -> None:
+    with pytest.raises(SystemExit):
+        main(["nope"])

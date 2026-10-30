@@ -14,13 +14,14 @@ The full piece: three outward-facing cameras (120° horizontal FOV each) mounted
 
 - **D1 Head motion:** the head turns toward the person by adjusting yaw (horizontal) and pitch (vertical). No roll, no head-cock. Heads are 2-DOF pan/tilt.
 - **D2 Viewing distance:** viewers stand a few feet away. Design envelope is 0.5 m to 2.0 m. MediaPipe's built-in short-range face detector covers this; no far-range detector.
-- **D3 Ownership:** one person triggers exactly one head. Every track is owned by exactly one zone at a time, and only that zone's head reacts to it.
+- **D3 Ownership:** one person triggers exactly one head. Every track is owned by exactly one zone at a time. In the laptop demo, D6 supersedes the zone-to-head rule: a `HeadAssigner` gives each person one head (preferring their zone's head). Only the assigned head reacts to a person.
+- **D7 Behaviour:** heads wander while their person looks at the piece and stare at them when they look away.
 
 Do not change these without a spec change approved by the project lead.
 
 ## 2. Repo state
 
-M1 is implemented: capture, MediaPipe perception, tracking, zones, attention, head control, WebSocket bridge, Three.js heads, `run`/`replay`/`fetch-models`. Open: AC-PER-05 live confirmation (`tools/check_orientation.py`), debug overlay, metrics, `bench`, golden and integration clips, GLB heads (M2/M3). See the status table in `README.md`.
+M1, M2 and M3 are implemented except what needs people (tuning study, consented clips, face fixture images, mannequin assets). Behaviour: heads are assigned per person (D6), wander while watched and stare when looked away from (D7). See the status table in `README.md`.
 
 ## 3. Source of truth
 
@@ -103,7 +104,8 @@ Adding a runtime dependency requires updating the table in `SPECS/02-architectur
 ```bash
 uv sync                                                   # install
 uv run lookaway fetch-models                              # download models with SHA-256 check
-uv run lookaway run --config config/demo.toml             # live demo, webcam 0
+uv run lookaway run                                       # live demo, webcam 0, opens the heads
+uv run lookaway run --overlay                             # plus the OpenCV debug window (D toggles, Q quits)
 uv run lookaway run --config config/demo.toml --source video:path/to/clip.mp4
 uv run lookaway replay tests/fixtures/landmarks/two_people.jsonl   # no camera, no model
 uv run lookaway bench --config config/demo.toml           # latency and FPS report

@@ -21,6 +21,37 @@ const key = new THREE.DirectionalLight(0xffffff, 1.3);
 key.position.set(2, 4, 6);
 scene.add(key);
 
+// Optional mannequin model: drop a GLB at web/assets/heads.glb (see web/assets/README.md).
+async function loadHeadTemplate() {
+  try {
+    const probe = await fetch("./assets/heads.glb", { method: "HEAD" });
+    if (!probe.ok) return null;
+    const { GLTFLoader } = await import("./vendor/loaders/GLTFLoader.js");
+    const gltf = await new GLTFLoader().loadAsync("./assets/heads.glb");
+    const box = new THREE.Box3().setFromObject(gltf.scene);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const wrapper = new THREE.Group();
+    gltf.scene.position.sub(center); // pivot at the model centre
+    wrapper.add(gltf.scene);
+    wrapper.scale.setScalar(2.0 / Math.max(size.y, 1e-6));
+    return wrapper;
+  } catch (err) {
+    console.warn("heads.glb not used:", err);
+    return null;
+  }
+}
+
+function makeGlbHead(x, template) {
+  const root = new THREE.Group();
+  root.position.x = x;
+  const group = new THREE.Group();
+  group.add(template.clone(true));
+  root.add(group);
+  scene.add(root);
+  return group;
+}
+
 function makeHead(x) {
   const group = new THREE.Group();
   group.position.x = x;
@@ -47,7 +78,8 @@ function makeHead(x) {
   return group;
 }
 
-const heads = HEAD_X.map(makeHead);
+const template = await loadHeadTemplate();
+const heads = HEAD_X.map((x) => (template ? makeGlbHead(x, template) : makeHead(x)));
 const target = HEAD_X.map(() => ({ yaw: 0, pitch: SLEEP_PITCH }));
 const current = HEAD_X.map(() => ({ yaw: 0, pitch: SLEEP_PITCH, vy: 0, vp: 0 }));
 let connected = false;

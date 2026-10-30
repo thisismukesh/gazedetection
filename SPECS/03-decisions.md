@@ -49,3 +49,71 @@ Each decision records context, choice, and consequences. Changing one requires a
 **Decision.** Python 3.12 core with a Three.js renderer over a localhost WebSocket.
 
 **Consequences.** Pure logic stays dependency-free so it could be ported to TypeScript later if a kiosk build is needed.
+
+## D6 Heads are assigned to people, not zones (2026-10-29)
+
+**Context.** The demo has one webcam, so several people may stand in the same zone, or all three
+in front of one camera. A pure zone-to-head rule leaves heads idle while one head fights over
+several people. The project lead asked that each person get a head.
+
+**Decision.** Supersedes the zone-ownership part of D3 for the laptop demo. A `HeadAssigner`
+gives each confirmed person one head and keeps that pairing until the person is lost.
+Preference order: the head of the person's zone, then the nearest free head (ties to the lower
+id). If every head is taken, extra people are ignored until a head frees. A head only ever reacts
+to its own person, so one person still triggers exactly one head. Zones remain as a bearing
+reference and a first-choice hint.
+
+**Consequences.**
+- Events handed to heads are retargeted: `zone_id` becomes the assigned head id and `az_rel_rad`
+  is re-referenced to that head's zone centre (`SPECS/16` Assignment).
+- A person who walks into another zone keeps their head. Policy rule 6 stays as a safety net.
+- The physical rig (one camera per head) still uses D3 through `CameraZoneMap`; the assigner is
+  the identity mapping there.
+
+## D7 Heads wander while watched, stare when looked away from (2026-10-29)
+
+**Context.** Heads sat still unless triggered. The project lead wants them alive while someone is
+looking at them, and fixed on the person once that person looks away.
+
+**Decision.** In IDLE, a head whose assigned person is currently LOOKING wanders: smooth random
+glances within a small yaw/pitch range with random dwell times. On `GazeLost` the head orients to
+the person and stares, following them for as long as they stay away, and lingers `hold_s` after
+the last away sample (or releases early on regain).
+
+**Consequences.** New config keys `control.wander_*` (SPECS/18). `PolicyOutput.wander` flag.
+
+## D8 Debug overlay runs on the main thread (2026-10-29)
+
+**Context.** SPECS/02 and SPECS/19 placed the overlay in the perception thread. On macOS, AppKit
+windows must be created and driven from the main thread, so OpenCV GUI calls from a worker thread
+crash or hang.
+
+**Decision.** The perception thread publishes the latest processed frame and track state into a
+single slot. A main-thread asyncio task draws and shows it at about 30 Hz and polls the keys.
+
+**Consequences.** All OpenCV GUI calls stay on one thread (the main thread). Overlay drawing is a
+pure function (`draw_overlay`) and is unit-tested. The overlay shows the latest frame, which may
+lag perception by up to one overlay period.
+
+## D9 Replay loops as the fallback demo source (2026-10-29)
+
+**Context.** A demo-day camera or lighting failure needs a fallback (SPECS/60 R9). Recording a
+video of real people needs consent.
+
+**Decision.** The fallback is a landmark replay (`--source replay:<jsonl>`), which loops in live
+runs and needs no camera, model or video of anyone. Synthetic scenarios ship in
+`tests/fixtures/landmarks/`. A consented video can be used the same way via `--source video:`.
+
+## D10 Provisional look target and cone for the laptop (2026-10-29)
+
+**Context.** The first live runs on a MacBook showed people looking at the screen sit about 17 to
+31 degrees (median about 23) off the camera axis, outside the 14 degree cone, so nobody was ever
+classified as looking. The heads are drawn on that screen, below the lens (SPECS/60 R5).
+
+**Decision.** Score against a look target `attention.look_target_pitch_deg = 8` degrees below the
+camera, and widen the cone to 18 degrees with softness 4. These are provisional guesses from ten
+live samples; the M0 tuning study (SPECS/40) replaces them.
+
+**Consequences.** `angle_to_cam_rad` stays the true angle to the camera; only the score uses the
+offset target. The physical rig uses offset 0. A real look-away needs roughly 28 degrees or more
+off the display to trigger, which is the trade-off the tuning study should settle.

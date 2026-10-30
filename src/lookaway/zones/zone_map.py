@@ -77,6 +77,9 @@ class SectorZoneMap:
             return zone - 1
         return None
 
+    def center_bearing(self, zone_id: int) -> float:
+        return self._centre_az[zone_id]
+
     def forget(self, track_id: int) -> None:
         self._owners.pop(track_id, None)
 

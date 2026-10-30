@@ -37,6 +37,17 @@ def facing_camera_angles(p: np.ndarray) -> tuple[float, float]:
     return math.atan2(p[0], p[2]), math.asin(-p[1] / n)
 
 
+def look_target_yaw_deg(p: np.ndarray, target_pitch_deg: float) -> float:
+    """Head yaw (pitch 0, eyes centred) that minimises the angle to the look target."""
+    a = math.radians(target_pitch_deg)
+    to_cam = -p
+    t = np.array(
+        [to_cam[0], to_cam[1] * math.cos(a) - to_cam[2] * math.sin(a),
+         to_cam[1] * math.sin(a) + to_cam[2] * math.cos(a)]
+    )  # fmt: skip
+    return math.degrees(math.atan2(-t[0], -t[2]))
+
+
 def make_obs(
     *,
     t: float = 0.0,

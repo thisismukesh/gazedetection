@@ -83,3 +83,10 @@ def gaze_direction(R: Mat3, eye_yaw_rad: float, eye_pitch_rad: float) -> Vec3:
 def angle_between(a: Vec3, b: Vec3) -> float:
     c = float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
     return math.acos(max(-1.0, min(1.0, c)))
+
+
+def pitch_down(v: Vec3, angle_rad: float) -> Vec3:
+    """Rotate ``v`` about the camera x axis toward +y (down in the OpenCV frame)."""
+    c, s = math.cos(angle_rad), math.sin(angle_rad)
+    rx = np.array([[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]])
+    return rx @ v

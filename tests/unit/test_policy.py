@@ -18,6 +18,7 @@ P = PolicyParams(
     regain_release_s=C.regain_release_s,
     idle_sway_rad=math.radians(C.idle_sway_deg),
     idle_sway_period_s=C.idle_sway_period_s,
+    wander_looking_ttl_s=C.wander_looking_ttl_s,
 )
 
 
@@ -192,4 +193,37 @@ def test_target_lost_freezes_bearing_until_hold_expiry() -> None:
     r.p.on_event(TrackLost(r.t, 7, 1))
     out = r.run(0.5, arrived=True)
     assert out.mode is HeadMode.HOLD and out.az_rel_rad == 0.3
+    assert r.leave_hold().mode is HeadMode.RETURN
+
+
+def looking_upd(t: float, track: int = 7) -> TrackUpdated:
+    return TrackUpdated(t, track, 1, 0.0, 0.0, 0.9, AttentionState.LOOKING)
+
+
+def test_AC_HEAD_09_wander_flag_follows_being_looked_at() -> None:
+    r = Rig()
+    assert r.tick().wander is False
+    r.p.on_event(looking_upd(r.t))
+    assert r.tick().wander is True
+    r.run(P.wander_looking_ttl_s - 0.2)
+    assert r.tick().wander is True
+    r.run(0.5)
+    assert r.tick().wander is False
+
+
+def test_wander_off_while_orienting_and_holding() -> None:
+    r = Rig()
+    r.p.on_event(looking_upd(r.t))
+    r.p.on_event(lost(r.t))
+    assert r.tick().wander is False
+    assert r.tick(arrived=True).wander is False
+
+
+def test_AC_HEAD_10_stares_while_person_stays_away() -> None:
+    r = Rig()
+    _hold(r)
+    for _ in range(round((P.hold_s * 2.5) / 0.1)):  # 5 s of AWAY updates
+        r.p.on_event(upd(r.t))
+        out = r.run(0.1, arrived=True)
+        assert out.mode is HeadMode.HOLD
     assert r.leave_hold().mode is HeadMode.RETURN

@@ -19,6 +19,8 @@
 
 ## Measurements to record (M0)
 
+Measured so far (MacBook Pro, Apple Silicon, 1280x720 webcam, one face, `lookaway bench`): 64 fps processing throughput, capture-to-score p50 16.0 ms, p95 17.0 ms (targets: 24 fps, 80 ms). The tuning study and distance clips still need participants.
+
 | Item | Value | Date |
 |---|---|---|
 | FPS at 1 / 2 / 4 faces | | |

@@ -14,6 +14,8 @@ PURE = [
     "control/targeting.py",
     "control/motion.py",
     "control/policy.py",
+    "control/assigner.py",
+    "control/wander.py",
     "perception/geometry.py",
 ]
 ALLOWED_THIRD_PARTY = {"numpy"}
