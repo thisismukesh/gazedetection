@@ -54,7 +54,7 @@ Pure modules (listed in CLAUDE.md section 5) import only the standard library, N
 
 | Dependency | License | Use |
 |---|---|---|
-| OpenCV (`opencv-python`) | Apache-2.0 | capture, overlay |
+| OpenCV (`opencv-contrib-python`, installed by MediaPipe; no separate `opencv-python`) | Apache-2.0 | capture, overlay |
 | MediaPipe | Apache-2.0 | Face Landmarker |
 | NumPy, SciPy | BSD-3-Clause | math, Hungarian assignment |
 | pydantic | MIT | config |

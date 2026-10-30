@@ -113,7 +113,7 @@ uv run pytest -m "not integration"                        # fast loop
 uv run pytest --update-golden                             # regenerate golden files, review the diff
 uv run ruff check . && uv run ruff format --check .
 uv run pyright
-node --test web/                                          # web/pose.js mapping tests
+node --test "web/*.test.js"                              # web/pose.js mapping tests (Node 22: bare `web/` fails)
 ```
 
 Renderer: http://127.0.0.1:8765 (served by the app). Overlay keys: `D` toggle, `Q` quit.

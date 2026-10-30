@@ -13,5 +13,5 @@ jobs:
       - run: uv run pytest -m "not integration and not manual" --cov=lookaway
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: node --test web/
+          node-version: 22
+      - run: node --test "web/*.test.js"

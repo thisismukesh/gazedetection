@@ -50,3 +50,40 @@ def test_pipeline_performs_no_file_writes(tmp_path: Path, monkeypatch: pytest.Mo
     while (frame := src.read()) is not None:
         pipe.process(frame)
     assert writes == []
+
+
+def test_video_source_pipeline_performs_no_file_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import numpy as np
+
+    from lookaway.capture.video_file import VideoFileSource
+    from lookaway.clock import FakeClock
+
+    clip = tmp_path / "c.mp4"
+    w = cv2.VideoWriter(str(clip), cv2.VideoWriter.fourcc(*"mp4v"), 10, (64, 48))
+    for i in range(8):
+        w.write(np.full((48, 64, 3), i, np.uint8))
+    w.release()
+
+    class NoFaces:
+        def process(self, frame: object) -> list[object]:
+            return []
+
+    cfg = load_config()
+    src = VideoFileSource(str(clip), FakeClock(), realtime=False)
+    src.open()
+    pipe = build_pipeline(cfg, src.info, NoFaces(), EventBus())  # type: ignore[arg-type]
+    writes: list[str] = []
+    real_open = builtins.open
+
+    def guarded_open(file: Any, mode: str = "r", *a: Any, **k: Any) -> Any:
+        if any(c in mode for c in "wax+"):
+            writes.append(f"open({file!r}, {mode!r})")
+        return real_open(file, mode, *a, **k)
+
+    monkeypatch.setattr(builtins, "open", guarded_open)
+    monkeypatch.setattr(cv2, "imwrite", lambda *a, **k: writes.append("cv2.imwrite"))
+    while (frame := src.read()) is not None:
+        pipe.process(frame)
+    assert writes == []

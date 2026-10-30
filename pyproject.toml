@@ -10,7 +10,6 @@ dependencies = [
     "pydantic>=2.6",
     "structlog>=24.1",
     "websockets>=12.0",
-    "opencv-python>=4.9",
     "mediapipe>=0.10.14",
 ]
 

@@ -24,10 +24,12 @@ progress against acceptance criteria is tracked in [`SPECS/50-roadmap.md`](SPECS
 | 1-euro filter, attention state machine (AC-SM-01..09, I1..I6) | done |
 | Geometric attention scorer (AC-ATT-01..07) | done |
 | IoU/Hungarian tracker (AC-TRK-01..04) | done |
-| Capture: video file, replay, read supervisor (AC-CAP-01..04) | done |
+| Capture: video file, replay, read supervisor (AC-CAP-01..04) | done. AC-CAP-03 reads "0.5, 1, 2, 5 s" as delays between retries (attempts at 0.5, 1.5, 3.5, 8.5 s); needs project-lead confirmation |
 | Webcam source | written, needs a live camera to verify |
-| Sector zone map with hysteresis (AC-ZONE-01..05) | done (planned for M2, needed by the pipeline) |
-| Pipeline + replay determinism (AC-SYS-04), privacy test | done |
+| Sector zone map with hysteresis (AC-ZONE-01..04, ownership half of 05) | done (planned for M2, needed by the pipeline) |
+| Pipeline + replay determinism (AC-SYS-04) | done |
+| Privacy test (no file writes) | done for replay and video sources |
+| `web/pose.js` mapping (AC-REN-03) | done |
 | MediaPipe Face Landmarker perception, `fetch-models` | not started |
 | Head controller (targeting, motion, policy), drivers | not started |
 | WebSocket bridge and Three.js heads (`web/`) | not started |
@@ -60,6 +62,7 @@ uv run pytest --cov=lookaway                   # with coverage
 uv run ruff check . && uv run ruff format --check .
 uv run pyright                                 # strict on src/
 uv run python -m tests.fixtures.scenarios      # regenerate synthetic landmark fixtures
+node --test "web/*.test.js"                    # JS pose mapping tests
 ```
 
 Workflow is spec-driven and test-first: find the SPECS section and AC IDs, write a failing
