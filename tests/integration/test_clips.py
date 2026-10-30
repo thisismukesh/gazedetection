@@ -21,7 +21,6 @@ from lookaway.clock import FakeClock
 from lookaway.config import load_config
 from lookaway.events import EventBus, GazeLost
 from lookaway.models import FACE_LANDMARKER_SHA256, sha256_file
-from lookaway.perception.mediapipe_face import MediaPipeFacePerception, resolve_model_path
 from lookaway.pipeline import build_pipeline
 
 pytestmark = pytest.mark.integration
@@ -32,7 +31,9 @@ needs_clips = pytest.mark.skipif(
 )
 
 
-def _perception() -> MediaPipeFacePerception:
+def _perception():  # noqa: ANN202
+    from lookaway.perception.mediapipe_face import MediaPipeFacePerception, resolve_model_path
+
     cfg = load_config()
     model = resolve_model_path(cfg.perception.model_path)
     if not model.exists() or sha256_file(model) != FACE_LANDMARKER_SHA256:

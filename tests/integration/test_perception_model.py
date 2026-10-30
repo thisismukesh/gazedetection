@@ -7,13 +7,14 @@ import pytest
 
 from lookaway.config import load_config
 from lookaway.models import FACE_LANDMARKER_SHA256, sha256_file
-from lookaway.perception.mediapipe_face import MediaPipeFacePerception, resolve_model_path
 from lookaway.types import Frame
 
 pytestmark = pytest.mark.integration
 
 
 def test_AC_PER_03_empty_scene_has_no_observations() -> None:
+    from lookaway.perception.mediapipe_face import MediaPipeFacePerception, resolve_model_path
+
     cfg = load_config()
     model = resolve_model_path(cfg.perception.model_path)
     if not model.exists() or sha256_file(model) != FACE_LANDMARKER_SHA256:

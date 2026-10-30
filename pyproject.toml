@@ -21,6 +21,7 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=5.0",
+    "pytest-timeout>=2.3",
     "hypothesis>=6.100",
     "ruff>=0.5",
     "pyright>=1.1.370",
@@ -38,6 +39,8 @@ testpaths = ["tests"]
 addopts = "-m 'not integration and not manual'"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+timeout = 120
+timeout_method = "thread"
 markers = [
     "integration: full pipeline on clips, needs model file",
     "manual: needs live camera, GPU or display",
