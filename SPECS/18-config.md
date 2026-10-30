@@ -65,7 +65,7 @@ softness_deg = 4.0
 blink_thresh = 0.5
 t_on = 0.65
 t_off = 0.35
-away_confirm_s = 0.25
+away_confirm_s = 0.2
 look_confirm_s = 0.30
 retrigger_cooldown_s = 1.0
 missing_as_away_s = 0.35
@@ -91,10 +91,10 @@ release_on_regain = true
 regain_release_s = 0.4
 idle_sway_deg = 2.0
 idle_sway_period_s = 6.0
-wander_yaw_deg = 14.0
-wander_pitch_deg = 7.0
-wander_min_dwell_s = 0.7
-wander_max_dwell_s = 2.2
+wander_yaw_deg = 40.0
+wander_pitch_deg = 14.0
+wander_min_dwell_s = 0.5
+wander_max_dwell_s = 1.5
 wander_looking_ttl_s = 1.0       # a person counts as looking this long after the last LOOKING update
 
 [control.target_one_euro]
@@ -105,8 +105,8 @@ d_cutoff = 1.0
 [control.limits]
 yaw_deg = 60.0
 pitch_deg = 30.0
-vel_deg_s = 150.0
-acc_deg_s2 = 600.0
+vel_deg_s = 360.0
+acc_deg_s2 = 2400.0
 
 [render]
 host = "127.0.0.1"

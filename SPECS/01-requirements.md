@@ -9,13 +9,16 @@
 - **FR-05** Assign each confirmed track to exactly one owning zone, with hysteresis at boundaries (D3).
 - **FR-06** Compute a per-track attention score from head pose and iris offset.
 - **FR-07** Run a per-track attention state machine. Emit `GazeLost` once per LOOKING to AWAY transition, plus `GazeAcquired`, `GazeRegained`, `TrackUpdated`, `TrackLost`.
-- **FR-08** Route each `GazeLost` only to the head of the track's owning zone.
-- **FR-09** That head turns toward the person by setting yaw from horizontal bearing and pitch from vertical bearing (D1), follows the person while holding, then returns to neutral.
+- **FR-08** Route each person's events only to the head(s) assigned to them: one head per person, preferring their zone's head; all heads when only one person has a head (D6, D14).
+- **FR-09** On `GazeLost`, each of the person's heads turns toward the person by setting yaw from horizontal bearing and pitch from vertical bearing (D1), follows the person while holding, then returns to neutral.
 - **FR-10** Repeat FR-09 every time a new `GazeLost` arrives, subject to cooldown and preemption rules.
 - **FR-11** Render three heads in a browser at 60 FPS from streamed head states.
 - **FR-12** Show a toggleable debug overlay with zones, tracks, scores, states and latencies.
 - **FR-13** Run in replay mode from recorded landmark JSONL with no camera and no model.
 - **FR-14** Load configuration from TOML with validation. CLI flags override source and config path.
+- **FR-16** While a person looks at the piece, their head(s) wander: random glances within `control.wander_*` (D7).
+- **FR-17** Faces that never blink or move (posters, masks) are ignored (D12).
+- **FR-18** The page shows a camera view, localhost only, with each face's head direction, gaze, state, score and assigned head (D11).
 - **FR-15** Head output goes through `HeadDriver`. The simulated driver is used now. A serial driver stub exists and passes the contract tests against a fake port.
 
 ## Non-functional

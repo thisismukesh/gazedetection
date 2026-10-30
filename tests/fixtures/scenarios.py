@@ -70,11 +70,11 @@ def blink_storm(seconds: float = 8.0) -> list[Record]:
 
 
 def phone_glance_down(seconds: float = 9.0) -> list[Record]:
-    """A 0.2 s glance down (ignored), then a 2 s look down at a phone (triggers)."""
+    """A 0.1 s glance down (shorter than away_confirm_s: ignored), then a 2 s look at a phone."""
     out: list[Record] = []
     for i in range(round(seconds * FPS)):
         t = i / FPS
-        down = 3.0 <= t < 3.2 or 5.0 <= t < 7.0
+        down = 3.0 <= t < 3.1 or 5.0 <= t < 7.0
         kw: dict[str, float] = {"head_pitch_deg": 30.0, "eye_pitch_deg": 15.0} if down else {}
         out.append((i, t, [make_obs(t=t, x_px=560.0 + sway(t), distance_m=1.2, **kw)]))
     return out

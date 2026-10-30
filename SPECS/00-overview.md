@@ -2,7 +2,9 @@
 
 ## Purpose
 
-A laptop demo of **Look Away**: three on-screen mannequin heads, each bound to one zone of a single webcam's view. When a person in a zone stops looking at the piece, that zone's head turns toward them (yaw and pitch) and follows them for a while, then returns to neutral. It repeats every time someone looks away.
+A laptop demo of **Look Away**: three on-screen mannequin heads watching the people in front of a single webcam. While a person looks at the piece, their head(s) glance around at random. When they look away, their head(s) snap toward them (yaw and pitch) and stare, following them until they look back or leave, then return. It repeats every time someone looks away.
+
+Who gets which head (D6, D14): each person gets one head, preferring the head for their third of the view. A lone person gets all three heads. A fourth person waits until a head frees up.
 
 The demo is built so the physical version (three outward-facing 120° cameras, three actuated 2-DOF heads) reuses all perception, attention and control logic.
 
@@ -11,10 +13,10 @@ The demo is built so the physical version (three outward-facing 120° cameras, t
 | Physical piece                          | Laptop demo                                        |
 |-----------------------------------------|----------------------------------------------------|
 | Camera k, 120° HFOV, mounted at yaw 120°·k | Zone k: one third of the webcam frame            |
-| Head k bound to camera k                | On-screen head k bound to zone k                   |
+| Head k bound to camera k                | Head k prefers people in zone k; a `HeadAssigner` pairs people and heads (D6, D14) |
 | Pan/tilt servo head                     | `SimulatedHeadDriver` -> Three.js head             |
 | "Looking at the piece"                  | Gaze ray within a cone around the camera           |
-| Person seen by camera k                 | Track owned by zone k (exactly one owner, D3)      |
+| Person seen by camera k                 | Track owned by zone k (exactly one zone, D3); zone sets bearing reference and head preference |
 
 ## Demo setup assumptions
 

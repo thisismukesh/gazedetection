@@ -11,7 +11,7 @@ Raw webcam images are unmirrored: a person standing to the audience's right appe
 ## Zones (demo)
 
 - `zones.count = 3`. Boundaries are fractions of width in the audience frame (`zones.boundaries`, default 1/3 and 2/3).
-- Zone 0 is the audience's left, zone 2 the audience's right. Head k is bound to zone k and is drawn at position k from the audience's left.
+- Zone 0 is the audience's left, zone 2 the audience's right. Head k is drawn at position k from the audience's left. A person's zone is their first-choice head and the bearing reference; the `HeadAssigner` decides which head(s) actually serve them (D6, D14) and re-references bearings to each serving head's zone centre.
 - **Zone-relative bearing:** `az_rel = az_rad - az_center[k]`, where `az_center[k]` is the bearing of zone k's centre column. This plays the role of a per-camera bearing in the physical rig.
 
 ## Ownership (D3)

@@ -284,6 +284,7 @@ def _overlay_info(
         p95_ms=metrics.latency("lat.total", clock.now())["p95"],
         mirror=cfg.capture.mirror_display,
         assignments=assigner.assignments(),
+        shared=frozenset(assigner.shared_tracks()),
     )
 
 

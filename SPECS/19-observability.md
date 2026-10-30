@@ -22,14 +22,16 @@ JSONL of bus events with scalar fields only. Used to create golden files and deb
 
 ## Debug overlay
 
-OpenCV window, toggled with `D`, quit with `Q`. Draws:
-- zone boundaries and zone labels (in the displayed, mirrored view when `capture.mirror_display`)
-- each track's bbox, ID and owning zone
+The same drawing (`draw_overlay`) feeds two outputs: an OpenCV window (`--overlay`, toggled with `D`, quit with `Q`, main thread per D8) and the camera view in the page (D11). It draws:
+- zone boundaries (in the displayed, mirrored view when `capture.mirror_display`)
+- each live track's bbox, ID, state, score and assigned head (`-> head k`, or `-> all heads` for a lone person)
 - score bar coloured by state: green LOOKING, amber pending, red AWAY, grey UNKNOWN
+- head direction (cyan arrow from the face) and gaze direction (yellow arrows from each iris), projected onto the image and mirrored with it
+- non-live tracks (D12) as a thin grey box labelled `static?`
 - per head: mode and current target track
 - FPS and p95 latency
 
-The overlay frame is never written to disk.
+Text sits on translucent dark boxes so it stays legible at the 480 px camera-view size. The overlay frame is never written to disk.
 
 ## Bench
 

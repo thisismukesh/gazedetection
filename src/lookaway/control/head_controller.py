@@ -16,6 +16,7 @@ from lookaway.events import (
     GazeRegained,
     HeadModeChanged,
     TrackLost,
+    TrackReleased,
     TrackUpdated,
 )
 from lookaway.types import HeadCommand, HeadDriver, HeadMode
@@ -50,7 +51,7 @@ class HeadController:
         self._f_el = OneEuroFilter(*target_filter)
         self._mode = HeadMode.IDLE
         self._track: int | None = None
-        for et in (GazeLost, GazeRegained, TrackUpdated, TrackLost):
+        for et in (GazeLost, GazeRegained, TrackUpdated, TrackLost, TrackReleased):
             bus.subscribe(et, policy.on_event)
 
     @property

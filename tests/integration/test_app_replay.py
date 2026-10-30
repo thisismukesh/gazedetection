@@ -14,7 +14,9 @@ from lookaway.perception.replay import write_jsonl
 from tests.fixtures import scenarios
 
 
-async def test_look_away_turns_only_the_owning_head(tmp_path: Path) -> None:
+async def test_a_lone_person_looking_away_is_stared_at_by_all_three_heads(
+    tmp_path: Path,
+) -> None:
     path = tmp_path / "s.jsonl"
     write_jsonl(path, scenarios.single_look_away(seconds=8.0, away=(2.5, 6.0), x_px=520.0))
     cfg = load_config(source=f"replay:{path}")
@@ -27,12 +29,16 @@ async def test_look_away_turns_only_the_owning_head(tmp_path: Path) -> None:
             break
         await asyncio.sleep(0.05)
     assert port
+    staring: set[int] = set()
     max_yaw = [0.0, 0.0, 0.0]
-    modes: set[str] = set()
     try:
         async with connect(f"ws://127.0.0.1:{port[0]}/") as ws:
+            loop = asyncio.get_running_loop()
+            settle_until: float | None = None  # keep watching while the heads swing round
             async with asyncio.timeout(7.0):
-                while True:
+                while settle_until is None or loop.time() < settle_until:
+                    if settle_until is None and len(staring) == 3:
+                        settle_until = loop.time() + 0.6
                     raw = await ws.recv()
                     if isinstance(raw, bytes):  # camera-view frames
                         continue
@@ -40,20 +46,14 @@ async def test_look_away_turns_only_the_owning_head(tmp_path: Path) -> None:
                     if msg["type"] != "head_state":
                         continue
                     for h in msg["heads"]:
-                        if h["id"] != 1:
-                            max_yaw[h["id"]] = max(max_yaw[h["id"]], abs(h["yaw"]))
-                    h1 = msg["heads"][1]
-                    modes.add(h1["mode"])
-                    if h1["mode"] in ("orient", "hold"):
-                        max_yaw[1] = max(max_yaw[1], abs(h1["yaw"]))
-                    if max_yaw[1] > 0.3:  # staring turns ~0.5 rad; wander tops out at 0.24
-                        break
+                        max_yaw[h["id"]] = max(max_yaw[h["id"]], abs(h["yaw"]))
+                        if h["target_track"] is not None and h["mode"] in ("orient", "hold"):
+                            staring.add(h["id"])
     finally:
         stop.set()
         await asyncio.wait_for(task, 5.0)
-    assert max_yaw[1] > 0.3
-    assert max_yaw[0] < 0.05 and max_yaw[2] < 0.05  # idle sway only (2 deg)
-    assert "orient" in modes or "hold" in modes
+    assert staring == {0, 1, 2}
+    assert max(max_yaw) > 0.3  # they really turned
 
 
 async def test_two_people_one_zone_each_get_a_head_looker_stared_at(tmp_path: Path) -> None:
@@ -89,9 +89,8 @@ async def test_two_people_one_zone_each_get_a_head_looker_stared_at(tmp_path: Pa
     finally:
         stop.set()
         await asyncio.wait_for(task, 5.0)
-    assert len(orient) == 1  # only the person who looked away is stared at
-    watched = {1, 0, 2} - {i for i in range(3) if max(abs(x) for x in span[i]) < 0.06}
-    assert len(watched) == 2  # two people -> two heads in motion (stare + wander)
+    assert len(orient) == 1  # only the person who looked away is stared at, by one head
+    assert len([i for i in range(3) if max(abs(x) for x in span[i]) >= 0.06]) >= 2  # both people
 
 
 async def _first_binary_frame(cfg_updates: dict[str, object], tmp_path: Path) -> bytes | None:

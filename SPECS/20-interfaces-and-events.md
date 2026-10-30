@@ -101,6 +101,7 @@ class Tracker(Protocol):
 class ZoneMap(Protocol):
     def assign(self, track_id: int, centroid_px: Vec2, t: float) -> int: ...
     def forget(self, track_id: int) -> None: ...
+    def center_bearing(self, zone_id: int) -> float: ...  # bearing of zone k's centre column
     def bearing(
         self, zone_id: int, centroid_px: Vec2
     ) -> tuple[float, float]: ...  # (az_rel_rad, el_rad)
@@ -157,6 +158,11 @@ class HeadCommand:
     pitch_rad: float  # + up
 
 
+class HeadAssigner:                        # pure; SPECS/16 Assignment, D6, D14
+    def on_event(self, e: Event) -> list[Event]: ...  # person events in, head-addressed copies out
+    def head_of(self, track_id: int) -> int | None: ...  # primary head
+    def heads_of(self, track_id: int) -> list[int]: ...  # primary + followers (lone person)
+
 class HeadDriver(Protocol):
     def send(self, cmd: HeadCommand) -> None: ...
     def state(self) -> HeadCommand | None: ...
@@ -174,6 +180,7 @@ All events are frozen dataclasses with a leading `t: float`.
 | `GazeRegained` | `track_id`, `zone_id` |
 | `TrackUpdated` | `track_id`, `zone_id`, `az_rel_rad`, `el_rad`, `score`, `state: AttentionState` |
 | `TrackLost` | `track_id`, `zone_id` |
+| `TrackReleased` | `track_id`, `zone_id` (the head that stops following this track; D14) |
 | `SourceStatus` | `source_id`, `ok: bool`, `detail: str` |
 | `HeadModeChanged` | `head_id`, `mode: HeadMode`, `target_track: int \| None` |
 

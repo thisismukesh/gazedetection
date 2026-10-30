@@ -16,5 +16,7 @@ Look for:
 - [ ] While someone looks at the piece, their head glances around randomly
 - [ ] The moment they look away, their head turns to them and stares until they look back
 - [ ] A blink or a very quick glance does not trigger
+- [ ] One person alone: all three heads glance around, then all three stare when they look away
 - [ ] Several people at once: each gets their own head; a head never reacts to someone else's person
+- [ ] Posters or pictures of faces in view are shown as `static?` and ignored
 - [ ] A fourth person is ignored until a head frees up

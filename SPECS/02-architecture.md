@@ -5,10 +5,10 @@
 1. **Sources** (`capture/`): `CameraSource` implementations, each feeding a `LatestFrameSlot`.
 2. **Perception** (`perception/`): `FacePerception` returns `FaceObservation`s for a frame.
 3. **Tracking** (`tracking/`): `Tracker` returns `Track`s with ephemeral IDs.
-4. **Zones** (`zones/`): `ZoneMap` assigns each confirmed track one owning zone.
+4. **Zones** (`zones/`): `ZoneMap` assigns each confirmed, live track one owning zone (the bearing reference and head preference).
 5. **Attention** (`attention/`): `AttentionScorer` returns an `AttentionSample`; `AttentionStateMachine` returns events.
 6. **Bus** (`events.py`): synchronous in-process pub/sub. Publishing from the perception thread into the asyncio loop uses `loop.call_soon_threadsafe`.
-7. **Control** (`control/`): one `HeadController` per head (policy, targeting, motion profile).
+7. **Control** (`control/`): a `HeadAssigner` pairs people with heads and readdresses events per head (D6, D14); one `HeadController` per head (policy, wander, targeting, motion profile).
 8. **Drivers** (`control/drivers/`): `HeadDriver` implementations.
 9. **Render** (`render/` + `web/`): WebSocket bridge, JSON protocol, Three.js client.
 10. **Observability** (`observability/`): logs, metrics, overlay.
@@ -19,12 +19,17 @@
 frame = slot.take_latest()
 obs   = perception.process(frame)                 # list[FaceObservation]
 tracks = tracker.update(obs, frame.t_capture)     # list[Track]
-for track in confirmed(tracks):
+for track in confirmed(tracks) if live(track):    # D12: posters and masks never pass
     zone   = zone_map.assign(track, t)            # exactly one zone
-    sample = scorer.score(track.last_obs)         # AttentionSample
-    events = machines[track.id].step(t, sample, zone, bearing)
-    bus.publish_all(events)
-for missing track: machines[id].step(t, None, ...)
+    sample = scorer.score(track.last_obs)         # AttentionSample (+ head and gaze vectors)
+    events = machines[track.id].step(t, ScoredSample(filtered score, zone, bearing))
+    bus.publish_all(events)                       # hop into the asyncio loop
+for missing track: machines[id].step(t, None)
+
+# asyncio loop
+for event in events:
+    bus.publish_all(assigner.on_event(event))     # readdressed per head (D6, D14)
+every control tick: for head in heads: head.tick(now)
 ```
 
 ## Concurrency

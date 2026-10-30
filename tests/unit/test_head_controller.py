@@ -7,7 +7,7 @@ import pytest
 from lookaway.config import load_config
 from lookaway.control.drivers.simulated import RecordingHeadDriver
 from lookaway.control.factory import build_head_controller
-from lookaway.events import EventBus, GazeLost, HeadModeChanged, TrackUpdated
+from lookaway.events import EventBus, GazeLost, HeadModeChanged, TrackReleased, TrackUpdated
 from lookaway.types import AttentionState, HeadMode
 
 C = load_config().control
@@ -66,13 +66,16 @@ def test_AC_HEAD_05_other_heads_do_not_change_mode() -> None:
     assert {c.head_id for c in r.changes} == {0}
 
 
-def test_AC_HEAD_06_target_in_other_zone_releases_only_this_head() -> None:
+def test_AC_HEAD_06_release_affects_only_the_addressed_head() -> None:
     r = Rig()
     r.run(0.1)
     r.lost(1, 5.0, 0.0)
     r.run(1.0)
     assert r.heads[1].mode is HeadMode.HOLD
-    r.bus.publish(TrackUpdated(r.t, 7, 2, 0.0, 0.0, 0.1, AttentionState.AWAY))
+    r.bus.publish(TrackUpdated(r.t, 7, 2, 0.0, 0.0, 0.1, AttentionState.AWAY))  # for head 2
+    r.run(0.05)
+    assert r.heads[1].mode is HeadMode.HOLD  # head 1 ignores head 2's copy
+    r.bus.publish(TrackReleased(r.t, 7, 1))
     r.run(0.05)
     assert r.heads[1].mode is HeadMode.RETURN
     assert r.heads[2].mode is HeadMode.IDLE

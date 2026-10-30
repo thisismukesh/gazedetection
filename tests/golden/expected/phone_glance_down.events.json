@@ -7,10 +7,10 @@
  },
  {
   "type": "GazeLost",
-  "t": 5.367,
+  "t": 5.3,
   "track_id": 1,
   "zone_id": 1,
-  "az_rel_rad": 0.081,
+  "az_rel_rad": 0.082,
   "el_rad": -0.0,
   "distance_m": null
  },

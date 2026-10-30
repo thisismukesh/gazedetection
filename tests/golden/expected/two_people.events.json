@@ -13,7 +13,7 @@
  },
  {
   "type": "GazeLost",
-  "t": 3.367,
+  "t": 3.3,
   "track_id": 2,
   "zone_id": 2,
   "az_rel_rad": -0.106,

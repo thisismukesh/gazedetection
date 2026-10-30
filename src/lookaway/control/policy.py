@@ -1,7 +1,7 @@
-"""Head behaviour policy: IDLE / ORIENT / HOLD / RETURN. Implements SPECS/16 Policy rules 1-8.
+"""Head behaviour policy: IDLE / ORIENT / HOLD / RETURN. Implements SPECS/16 Policy rules 1-11.
 
-AC-HEAD-03..07. The caller supplies ``arrived`` (pose within tolerance of the target pose), so the
-policy stays independent of targeting and motion.
+AC-HEAD-03..07, AC-HEAD-09..11. The caller supplies ``arrived`` (pose within tolerance of the
+target pose), so the policy stays independent of targeting and motion.
 """
 
 from __future__ import annotations
@@ -15,9 +15,12 @@ from lookaway.events import (
     GazeLost,
     GazeRegained,
     TrackLost,
+    TrackReleased,
     TrackUpdated,
 )
 from lookaway.types import AttentionState, HeadMode
+
+_HEAD_EVENTS = (GazeAcquired, GazeLost, GazeRegained, TrackUpdated, TrackLost, TrackReleased)
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,10 +69,12 @@ class HeadPolicy:
     # -- events -----------------------------------------------------------------------------
 
     def on_event(self, e: Event) -> None:
+        """Rule 9: only events addressed to this head (``zone_id`` = head id) count."""
+        if not isinstance(e, _HEAD_EVENTS) or e.zone_id != self._p.zone_id:
+            return
         if isinstance(e, GazeAcquired):
-            if e.zone_id == self._p.zone_id:
-                self._mark_looked_at(e.t)
-        elif isinstance(e, GazeLost) and e.zone_id == self._p.zone_id:
+            self._mark_looked_at(e.t)
+        elif isinstance(e, GazeLost):
             self._on_lost(e)
         elif isinstance(e, TrackUpdated):
             self._on_updated(e)
@@ -77,6 +82,8 @@ class HeadPolicy:
             self._on_regained(e)
         elif isinstance(e, TrackLost):
             self._on_track_lost(e)
+        else:
+            self._on_released(e)
 
     def _on_lost(self, e: GazeLost) -> None:
         new = _Target(e.track_id, e.az_rel_rad, e.el_rad, e.t)
@@ -96,27 +103,20 @@ class HeadPolicy:
         self._looked_at_until = t + self._p.wander_looking_ttl_s
 
     def _on_updated(self, e: TrackUpdated) -> None:
-        looking = e.state in (AttentionState.LOOKING, AttentionState.AWAY_PENDING)
-        if looking and e.zone_id == self._p.zone_id:
+        if e.state in (AttentionState.LOOKING, AttentionState.AWAY_PENDING):
             self._mark_looked_at(e.t)
         if self._next is not None and e.track_id == self._next.track:
-            if e.zone_id != self._p.zone_id:
-                self._next = None
-            else:
-                self._next.az, self._next.el = e.az_rel_rad, e.el_rad
+            self._next.az, self._next.el = e.az_rel_rad, e.el_rad
         t = self._target
         if t is None or e.track_id != t.track or self._mode not in (HeadMode.ORIENT, HeadMode.HOLD):
             return
-        if e.zone_id != self._p.zone_id:
-            self._to_return()
-        elif not t.lost:
+        if not t.lost:
             t.az, t.el = e.az_rel_rad, e.el_rad
             if self._mode is HeadMode.HOLD and e.state is AttentionState.AWAY:
                 self._stare_t = e.t
 
     def _on_regained(self, e: GazeRegained) -> None:
-        if e.zone_id == self._p.zone_id:
-            self._mark_looked_at(e.t)
+        self._mark_looked_at(e.t)
         t = self._target
         if (
             self._p.release_on_regain
@@ -125,6 +125,16 @@ class HeadPolicy:
             and self._mode in (HeadMode.ORIENT, HeadMode.HOLD)
         ):
             self._release_at = e.t + self._p.regain_release_s
+
+    def _on_released(self, e: TrackReleased) -> None:
+        """Rule 8: the assigner took this head off ``e.track_id`` (D14). Let go, stop wandering."""
+        self._looked_at_until = -math.inf  # that person is no longer this head's to watch
+        if self._next is not None and e.track_id == self._next.track:
+            self._next = None
+        following = self._mode in (HeadMode.ORIENT, HeadMode.HOLD)
+        if following and self._target is not None and e.track_id == self._target.track:
+            self._next = None
+            self._to_return()
 
     def _on_track_lost(self, e: TrackLost) -> None:
         if self._target is not None and e.track_id == self._target.track:

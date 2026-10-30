@@ -1,6 +1,8 @@
 # 16 Head Controller
 
-One `HeadController` per head. It listens to bus events for its own zone, runs a pure policy, converts targets to yaw/pitch (D1), applies a motion profile, and sends a `HeadCommand` to its `HeadDriver` every control tick.
+One `HeadController` per head. It listens to the events the `HeadAssigner` addresses to it (`zone_id` = this head's id, D6/D14), runs a pure policy, converts targets to yaw/pitch (D1), applies a motion profile, and sends a `HeadCommand` to its `HeadDriver` every control tick.
+
+Data flow: attention events (keyed by the person's zone) -> `HeadAssigner` -> head-addressed events -> each head's policy.
 
 ## Targeting (pure, `control/targeting.py`)
 
@@ -15,7 +17,7 @@ Positive yaw turns the face toward the audience's right. Positive pitch tilts th
 
 States: `IDLE`, `ORIENT`, `HOLD`, `RETURN`.
 
-Inputs: events for this head's zone (`GazeLost`, `GazeRegained`, `TrackUpdated`, `TrackLost`) and `tick(t)`. Output each tick: the pose target and the current mode.
+Inputs: events addressed to this head (`GazeAcquired`, `GazeLost`, `GazeRegained`, `TrackUpdated`, `TrackLost`, `TrackReleased`) and `tick(t)`. Output each tick: the pose target, the current mode and the `wander` flag.
 
 | State | Behaviour | Exit |
 |---|---|---|
@@ -26,18 +28,19 @@ Inputs: events for this head's zone (`GazeLost`, `GazeRegained`, `TrackUpdated`,
 
 Rules:
 
-1. **Trigger.** `GazeLost` whose `zone_id` equals this head's zone, received in IDLE or RETURN, starts ORIENT toward that track immediately.
+1. **Trigger.** `GazeLost` received in IDLE or RETURN starts ORIENT toward that track immediately.
 2. **Same target again.** `GazeLost` for the current target restarts the hold timer and stays on that target.
-3. **Preemption.** `GazeLost` for a different track during ORIENT or HOLD: if in HOLD for at least `min_hold_s`, switch to the new track (ORIENT). Otherwise store it as `next_target` (latest wins).
-4. **Queued target.** On entering RETURN, if `next_target` exists, is not lost, is still owned by this zone, and is younger than `next_target_ttl_s`, go to ORIENT toward it. Otherwise discard it.
+3. **Preemption.** `GazeLost` for a different track during ORIENT or HOLD: if in HOLD for at least `min_hold_s`, switch to the new track (ORIENT). Otherwise store it as `next_target` (latest wins). (With the assigner a head serves one person at a time, so this only happens across a release.)
+4. **Queued target.** On entering RETURN, if `next_target` exists, is not lost and is younger than `next_target_ttl_s`, go to ORIENT toward it. Otherwise discard it.
 5. **Regain.** If `release_on_regain` and the target emits `GazeRegained`, go to RETURN after `regain_release_s`.
-6. **Zone change (D3).** If a `TrackUpdated` shows the target's zone is no longer this head's zone, go to RETURN. Other heads do not react unless a new `GazeLost` arrives for them.
+6. **Following.** While in ORIENT or HOLD, `TrackUpdated` for the target updates its bearing, so the head follows the person wherever they walk, across zones (D6). A head stops following only through rules 5, 7, 8 or HOLD expiry.
 7. **Target lost.** On `TrackLost` for the target, freeze the target pose at the last bearing. Continue to HOLD expiry, then RETURN.
-8. **Isolation.** Events for other heads never change this head's state.
-9. **Wander (D7).** In IDLE, if a `TrackUpdated`, `GazeAcquired` or `GazeRegained` for this head's person showed state LOOKING (or AWAY_PENDING) within `control.wander_looking_ttl_s`, the output carries `wander = True`. The controller then picks random targets: yaw uniform in ±`wander_yaw_deg`, pitch in ±`wander_pitch_deg`, a new one every uniform(`wander_min_dwell_s`, `wander_max_dwell_s`) seconds, all through the normal motion limits.
-10. **Stare (D7).** While in HOLD, a `TrackUpdated` for the target with state AWAY restarts the linger timer, so the head keeps staring for as long as the person looks away.
+8. **Release (D14).** `TrackReleased` for the head's current target sends it to RETURN, clears its queued target and stops it wandering on that person's behalf.
+9. **Isolation.** The policy ignores every event whose `zone_id` is not this head's id. The assigner delivers one person's events to several heads (D14), each copy addressed to its head; copies addressed to other heads must never change this head's state.
+10. **Wander (D7).** In IDLE, if a `TrackUpdated` (state LOOKING or AWAY_PENDING), `GazeAcquired` or `GazeRegained` arrived within `control.wander_looking_ttl_s`, the output carries `wander = True`. The controller then picks random targets: yaw uniform in ±`wander_yaw_deg`, pitch in ±`wander_pitch_deg`, a new one every uniform(`wander_min_dwell_s`, `wander_max_dwell_s`) seconds, all through the normal motion limits.
+11. **Stare (D7).** While in HOLD, a `TrackUpdated` for the target with state AWAY restarts the linger timer, so the head keeps staring for as long as the person looks away.
 
-## Assignment (pure, `control/assigner.py`, D6)
+## Assignment (pure, `control/assigner.py`, D6, D14)
 
 `HeadAssigner.on_event(event) -> list[Event]` sits between the attention events and the heads.
 
@@ -45,7 +48,8 @@ Rules:
 2. The pairing is sticky until `TrackLost`, even if the person moves to another zone.
 3. Output events are copies with `zone_id = head id` and `az_rel_rad` re-referenced to that head's zone centre: `az_rel + centre[zone] - centre[head]`.
 4. `TrackLost` is forwarded, then the head is freed.
-5. Each `GazeLost` is delivered to exactly one head.
+5. **Solo ownership (D14).** When exactly one track has a head, that track also owns every other head (its followers). All its events are delivered to each of its heads, retargeted per head. When a second track gets a head, the followers are released: `TrackReleased(track, head)` is emitted for each, then the new track's events flow. When tracks leave and exactly one remains, the free heads rejoin it; a head that rejoins while the person is looking away receives a synthetic `GazeLost` so it stares at once.
+6. Each `GazeLost` reaches only the heads its track owns, and no head is owned by two tracks at once.
 
 ## Motion (pure, `control/motion.py`)
 
@@ -74,4 +78,4 @@ Each tick: `HeadCommand(head_id, t, yaw_rad, pitch_rad)` to the driver. On mode 
 
 ## Acceptance
 
-AC-HEAD-01 to AC-HEAD-08.
+AC-HEAD-01 to AC-HEAD-11, AC-ASSIGN-01 to AC-ASSIGN-07.

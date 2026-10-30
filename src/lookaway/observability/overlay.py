@@ -39,6 +39,7 @@ class OverlayInfo:
     p95_ms: float
     mirror: bool
     assignments: dict[int, int] = field(default_factory=dict[int, int])
+    shared: frozenset[int] = frozenset()  # tracks that own every head (a lone person)
 
 
 def _fs(w: int) -> float:
@@ -100,7 +101,9 @@ def draw_overlay(image: NDArray[np.uint8], info: OverlayInfo) -> NDArray[np.uint
         cv2.rectangle(out, (xa, int(y0)), (xb, int(y1)), color, 2)
         head = info.assignments.get(t.id)
         label = f"#{t.id} {t.state.name.lower()} {t.score:.2f}" + (
-            f" -> head {head}" if head is not None else ""
+            (" -> all heads" if t.id in info.shared else f" -> head {head}")
+            if head is not None
+            else ""
         )
         _text(out, label, (xa, max(int(y0) - 8, 14)), color, _fs(w))
         bar_w = int((xb - xa) * max(0.0, min(1.0, t.score)))

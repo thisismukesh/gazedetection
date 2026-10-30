@@ -161,3 +161,21 @@ normalised by eye width on both axes, and convert with `asin(offset / eye_radius
 **Consequences.** Gaze reaches larger angles from the same iris offsets, so eye-only glances count
 for more. The default is anthropometric, not tuned; the tuning study should refine it. SPECS/13
 step 3 and SPECS/18 change; AC-ATT-04 still holds (25 degrees of eye yaw is scored away).
+
+## D14 One person owns every head (2026-10-29)
+
+**Context.** With a single viewer, two of three heads sat idle while one stared at them, and the
+wander was too small to read as alive. The project lead wants all three heads on a lone viewer,
+a quick snap to stare when they look away, and clearly visible random looking-about while watched.
+
+**Decision.** Extends D6. When exactly one person has a head, that person owns all heads: each
+head gets the events with its own bearing, so all three wander while the person looks and all
+three stare when they look away. The moment a second person gets a head, the extra heads are
+released (`TrackReleased`) and each person keeps exactly one head. When people leave and one
+remains, the free heads rejoin them, staring at once if they are currently looking away.
+Wander range grows to 40 degrees yaw and 14 pitch with shorter dwells. Head velocity and
+acceleration limits rise to 360 deg/s and 2400 deg/s2, and `away_confirm_s` drops to 0.2.
+
+**Consequences.** `TrackReleased` joins the event list. Exactly-one-head-per-person (D3) still holds
+whenever two or more people are present; with one person all heads are theirs. The physical rig
+will set the limits to what the servos allow.

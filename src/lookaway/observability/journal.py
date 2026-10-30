@@ -16,10 +16,19 @@ from lookaway.events import (
     GazeRegained,
     HeadModeChanged,
     TrackLost,
+    TrackReleased,
     TrackUpdated,
 )
 
-_TYPES = (GazeAcquired, GazeLost, GazeRegained, TrackUpdated, TrackLost, HeadModeChanged)
+_TYPES = (
+    GazeAcquired,
+    GazeLost,
+    GazeRegained,
+    TrackUpdated,
+    TrackLost,
+    TrackReleased,
+    HeadModeChanged,
+)
 
 
 class Journal:

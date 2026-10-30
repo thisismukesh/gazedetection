@@ -14,14 +14,18 @@ The full piece: three outward-facing cameras (120° horizontal FOV each) mounted
 
 - **D1 Head motion:** the head turns toward the person by adjusting yaw (horizontal) and pitch (vertical). No roll, no head-cock. Heads are 2-DOF pan/tilt.
 - **D2 Viewing distance:** viewers stand a few feet away. Design envelope is 0.5 m to 2.0 m. MediaPipe's built-in short-range face detector covers this; no far-range detector.
-- **D3 Ownership:** one person triggers exactly one head. Every track is owned by exactly one zone at a time. In the laptop demo, D6 supersedes the zone-to-head rule: a `HeadAssigner` gives each person one head (preferring their zone's head). Only the assigned head reacts to a person.
+- **D3 Ownership:** every track is owned by exactly one zone at a time, and a head only reacts to the person it is assigned to.
+- **D6 / D14 Head assignment (laptop demo):** a `HeadAssigner` gives each person one head, preferring their zone's head. A lone person gets all three heads; the extras are released (`TrackReleased`) the moment a second person gets a head. Events reach heads readdressed (`zone_id` = head id).
 - **D7 Behaviour:** heads wander while their person looks at the piece and stare at them when they look away.
+- **D12 Liveness:** a face must blink or move before it counts as a person (posters and masks never do).
+
+The full list, D1 to D14, is in `SPECS/03-decisions.md`.
 
 Do not change these without a spec change approved by the project lead.
 
 ## 2. Repo state
 
-M1, M2 and M3 are implemented except what needs people (tuning study, consented clips, face fixture images, mannequin assets). Behaviour: heads are assigned per person (D6), wander while watched and stare when looked away from (D7). See the status table in `README.md`.
+M1, M2 and M3 are implemented except what needs people (tuning study, consented clips, face fixture images, mannequin assets). Behaviour: heads are assigned per person and a lone person gets all three (D6, D14); heads wander while watched and stare when looked away from (D7). See the status table in `README.md`.
 
 ## 3. Source of truth
 
@@ -36,14 +40,15 @@ M1, M2 and M3 are implemented except what needs people (tuning study, consented 
 CameraSource (webcam | video file | replay)
   -> latest-frame slot (drop stale frames, never queue)
   -> FacePerception (MediaPipe Face Landmarker: landmarks, iris, head pose, blink)
-  -> Tracker (IoU + Hungarian, ephemeral IDs)
+  -> Tracker (IoU + Hungarian, ephemeral IDs) -> liveness gate (blink or move, D12)
   -> ZoneMap (audience-frame x -> owning zone, with hysteresis)
-  -> AttentionScorer (head pose + iris -> angle to camera -> score, 1-euro filtered)
+  -> AttentionScorer (head pose + iris eyeball model -> angle to look target -> score, 1-euro filtered)
   -> AttentionStateMachine per track (hysteresis + dwell + cooldown)
   -> EventBus (GazeLost, GazeRegained, TrackUpdated, TrackLost, ...)
-  -> HeadController x3 (policy + yaw/pitch target + motion limits)
+  -> HeadAssigner (people -> heads; lone person owns all heads; readdresses events, D6/D14)
+  -> HeadController x3 (policy + wander + yaw/pitch target + motion limits)
   -> HeadDriver (SimulatedHeadDriver -> WebSocket -> Three.js heads in browser)
-DebugOverlay subscribes to the bus (OpenCV window, toggle D).
+Camera view (annotated JPEG over the WebSocket, D11) and the OpenCV overlay share draw_overlay.
 ```
 
 Concurrency: one capture thread per source writing to a latest-frame slot; one perception thread; one asyncio loop running the control tick (100 Hz) and the render broadcast (60 Hz). All time comes from an injected `Clock`.
@@ -75,23 +80,24 @@ look-away/
 │   ├── tracking/               # iou_tracker.py
 │   ├── zones/                  # zone_map.py
 │   ├── attention/              # scorer_base.py, geometric.py, one_euro.py, state_machine.py
-│   ├── control/                # targeting.py, motion.py, policy.py, head_controller.py
+│   ├── pipeline.py             # per-frame perception -> tracking -> liveness -> zones -> attention
+│   ├── control/                # assigner.py, wander.py, targeting.py, motion.py, policy.py, head_controller.py
 │   │   └── drivers/            # base.py, simulated.py, serial_stub.py
 │   ├── render/                 # ws_bridge.py, protocol.py
-│   └── observability/          # logging.py, metrics.py, overlay.py
+│   └── observability/          # logging.py, metrics.py, overlay.py, journal.py, bench.py
 ├── web/                        # index.html, main.js (Three.js), pose.js (pure), pose.test.js, assets/
 ├── tests/
 │   ├── unit/ property/ contract/ golden/ integration/
 │   └── fixtures/               # synth.py, landmark JSONL, golden event JSON
-├── tools/                      # record_landmarks.py (consent-gated), fetch_models.py
+├── tools/                      # record_landmarks.py (consent-gated), check_orientation.py, check_eyes.py
 └── models/                     # gitignored, fetched with SHA-256 check
 ```
 
 ### Purity rule
 
-These modules are **pure**: `attention/state_machine.py`, `attention/one_euro.py`, `zones/zone_map.py`, `control/targeting.py`, `control/motion.py`, `control/policy.py`, `perception/geometry.py`. They import only the standard library, NumPy, `types` and `events`. No OpenCV, no MediaPipe, no threads, no I/O, no wall-clock. They take inputs plus a timestamp and return outputs. `tests/unit/test_import_rules.py` enforces this.
+These modules are **pure**: `attention/state_machine.py`, `attention/one_euro.py`, `zones/zone_map.py`, `control/targeting.py`, `control/motion.py`, `control/policy.py`, `control/assigner.py`, `control/wander.py`, `perception/geometry.py`. They import only the standard library, NumPy, `types` and `events`. No OpenCV, no MediaPipe, no threads, no I/O, no wall-clock. They take inputs plus a timestamp and return outputs. `tests/unit/test_import_rules.py` enforces this.
 
-Only `capture/*`, `perception/mediapipe_face.py`, `render/*`, `control/drivers/*`, `observability/overlay.py`, `cli.py` and `app.py` may touch cameras, models, sockets, the GUI or the filesystem.
+Only `capture/*`, `perception/mediapipe_face.py`, `render/*`, `control/drivers/*`, `observability/overlay.py`, `observability/logging.py`, `observability/journal.py` (development mode), `recording.py` (consent-gated), `models.py` (`fetch-models`), `cli.py` and `app.py` may touch cameras, models, sockets, the GUI or the filesystem.
 
 ## 6. Tech stack
 
@@ -175,7 +181,7 @@ Details: `SPECS/40-test-plan.md`.
 - Do not import OpenCV, MediaPipe or socket libraries outside the modules allowed in section 5.
 - Do not write frames, crops, landmarks or embeddings to disk or network, except landmarks via `tools/record_landmarks.py` with `--consent-id` in development mode.
 - Do not add face recognition, re-identification, or age, gender or emotion inference.
-- Do not add roll to the heads, a far-range detector, or multi-head reactions to one person. These contradict D1 to D3.
+- Do not add roll to the heads or a far-range detector (D1, D2). Do not let a head react to a person it is not assigned to; several heads on one person happen only through the assigner's lone-person rule (D14).
 - Do not enable non-commercially-licensed weights (Gaze360-trained L2CS-Net, OpenFace, eye-contact-cnn) by default. Plug-ins need `privacy.allow_restricted_models = true` and print a license warning at startup.
 - Do not queue frames. Always process the latest frame.
 - Do not change numeric defaults in code. Change the spec TOML and `config/default.toml` together.

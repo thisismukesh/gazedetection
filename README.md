@@ -18,9 +18,11 @@ perception, attention or control logic.
 - The moment they look away (blinks and quick glances are ignored): their head **turns to them
   and stares**, following them for as long as they look away, then lingers briefly or releases as
   soon as they look back.
-- Several people in front of the one camera: **each person gets their own head** (preferring the
-  head for their third of the view, otherwise the nearest free head). A fourth person waits
-  until a head frees up.
+- **One person:** all three heads are theirs. They all glance around while you look, and all
+  three snap round and stare the moment you look away.
+- **Several people:** each person gets their own head (preferring the head for their third of the
+  view, otherwise the nearest free head). A fourth person waits until a head frees up.
+- **Posters and masks** are ignored: a face has to blink or move before it counts.
 
 ## Status
 
@@ -30,7 +32,7 @@ Milestones M1 to M3 are implemented. Behaviour is defined in [`SPECS/`](SPECS/).
 |---|---|
 | Capture (webcam, video, replay, supervised retries), MediaPipe perception, pinned model | done; webcam verified on a MacBook (about 30 fps, face on every frame) |
 | Tracking, zones, attention scoring and state machine | done; head axes, iris pairing and blink handling verified against live data |
-| Head assignment (D6), wander and stare (D7), motion limits, drivers (simulated, recording, serial stub) | done |
+| Head assignment (D6), lone person gets all heads (D14), wander and stare (D7), motion limits, drivers (simulated, recording, serial stub) | done |
 | WebSocket bridge, Three.js heads, optional GLB mannequin heads | done; verified in Chrome |
 | Camera view in the page (head and gaze vectors, scores, assigned head); static-face rejection (D12); eye term from eyeball geometry (D13) | done; verified in Chrome. Eye-term signs are checked synthetically, not yet against a live face |
 | Debug overlay (D toggles, Q quits), metrics, `debug` stream, dev event journal, log scrubbing | done |

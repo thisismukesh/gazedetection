@@ -57,6 +57,15 @@ class TrackLost:
 
 
 @dataclass(frozen=True, slots=True)
+class TrackReleased:
+    """A head stops following this track (D14). ``zone_id`` is the head that lets go."""
+
+    t: float
+    track_id: int
+    zone_id: int
+
+
+@dataclass(frozen=True, slots=True)
 class SourceStatus:
     t: float
     source_id: str
@@ -78,6 +87,7 @@ Event = (
     | GazeRegained
     | TrackUpdated
     | TrackLost
+    | TrackReleased
     | SourceStatus
     | HeadModeChanged
 )

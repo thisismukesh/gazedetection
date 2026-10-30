@@ -5,7 +5,7 @@ from dataclasses import replace
 
 from lookaway.config import load_config
 from lookaway.control.policy import HeadPolicy, PolicyOutput, PolicyParams
-from lookaway.events import GazeLost, GazeRegained, TrackLost, TrackUpdated
+from lookaway.events import GazeLost, GazeRegained, TrackLost, TrackReleased, TrackUpdated
 from lookaway.types import AttentionState, HeadMode
 
 C = load_config().control
@@ -157,11 +157,21 @@ def test_same_target_again_restarts_hold() -> None:
     assert r.run(0.5, arrived=True).mode is HeadMode.HOLD
 
 
-def test_AC_HEAD_06_target_moves_to_other_zone_returns() -> None:
+def test_AC_HEAD_06_copies_for_other_heads_are_ignored() -> None:
     r = Rig()
     _hold(r)
-    r.p.on_event(upd(r.t, track=7, zone=2))
-    assert r.tick(arrived=False).mode is HeadMode.RETURN
+    r.p.on_event(upd(r.t, track=7, zone=2, az=0.9))  # the same person, addressed to head 2
+    r.p.on_event(TrackReleased(r.t, 7, 0))  # head 0 letting go must not move head 1
+    out = r.tick(arrived=True)
+    assert out.mode is HeadMode.HOLD and out.az_rel_rad == 0.1
+
+
+def test_AC_HEAD_06_follows_its_person_across_zones() -> None:
+    r = Rig()
+    _hold(r)
+    r.p.on_event(upd(r.t, track=7, zone=1, az=-0.35))  # walked far to the other side
+    out = r.tick(arrived=True)
+    assert out.mode is HeadMode.HOLD and out.az_rel_rad == -0.35
 
 
 def test_AC_HEAD_07_follows_target_bearing_while_holding() -> None:
@@ -227,3 +237,32 @@ def test_AC_HEAD_10_stares_while_person_stays_away() -> None:
         out = r.run(0.1, arrived=True)
         assert out.mode is HeadMode.HOLD
     assert r.leave_hold().mode is HeadMode.RETURN
+
+
+def test_AC_HEAD_11_release_returns_the_head_and_stops_wandering() -> None:
+    r = Rig()
+    r.p.on_event(looking_upd(r.t))
+    _hold(r)
+    r.p.on_event(TrackReleased(r.t, 7, 1))
+    out = r.tick(arrived=False)
+    assert out.mode is HeadMode.RETURN and out.target_track is None
+    assert r.tick(arrived=True).mode is HeadMode.IDLE
+    assert r.tick().wander is False  # not wandering on a released person's behalf
+
+
+def test_release_of_another_track_changes_nothing() -> None:
+    r = Rig()
+    _hold(r)
+    r.p.on_event(TrackReleased(r.t, 99, 1))
+    assert r.tick(arrived=True).mode is HeadMode.HOLD
+
+
+def test_release_clears_a_queued_target() -> None:
+    r = Rig()
+    _hold(r)
+    r.run(0.1, arrived=True)
+    r.p.on_event(lost(r.t, track=9))  # queued
+    r.p.on_event(TrackReleased(r.t, 9, 1))
+    r.p.on_event(GazeRegained(r.t, 7, 1))
+    out = r.leave_hold()
+    assert out.mode is HeadMode.RETURN

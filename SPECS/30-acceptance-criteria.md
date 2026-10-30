@@ -32,7 +32,7 @@ Format: Given / When / Then. Test names use the ID, e.g. `test_AC_SM_03_blink_do
 - **AC-ATT-01** Given a synthetic frontal face at the image centre looking at the camera, then `angle_to_cam < 5°` and `raw_score > 0.9`.
 - **AC-ATT-02** Given a synthetic face at the image centre with head yaw 40° and centred irises, then `raw_score < 0.1`.
 - **AC-ATT-03** Given a synthetic face near the image edge whose head is turned to face the camera, then `raw_score > 0.8`.
-- **AC-ATT-04** Given a frontal head at the image centre, `iod_px >= 45`, eyes open, and an iris offset equal to 25° of eye yaw under the configured gains, then `raw_score < 0.2`.
+- **AC-ATT-04** Given a frontal head at the image centre, `iod_px >= 45`, eyes open, and an iris offset equal to 25° of eye yaw under the eye model (D13), then `raw_score < 0.2`.
 - **AC-ATT-05** Given `iod_px <= 15`, then the eye term has zero weight and the score equals the head-pose-only score.
 - **AC-ATT-06** Given both blink values at 0.8, then `eyes_closed = true`.
 - **AC-ATT-07** (property) For fixed position and eye state, `raw_score` is non-increasing as head yaw moves away from facing the camera.
@@ -59,12 +59,12 @@ Format: Given / When / Then. Test names use the ID, e.g. `test_AC_SM_03_blink_do
 
 ## Head controller
 
-- **AC-HEAD-01** Given head 1 IDLE, when `GazeLost` arrives for zone 1 with `az_rel = +5°`, `el = 0°`, then head 1 enters ORIENT and reaches yaw 20° ± 2° and pitch 0° ± 2° within 0.6 s.
-- **AC-HEAD-02** Given head 1 IDLE, when `GazeLost` arrives for zone 1 with `az_rel = 0°`, `el = +5°`, then pitch reaches 10° ± 2° within 0.6 s (D1).
-- **AC-HEAD-03** Given head 1 in HOLD for 0.3 s, when `GazeLost` for another track in zone 1 arrives, then the target does not change and the new track is queued.
+- **AC-HEAD-01** Given head 1 IDLE, when `GazeLost` addressed to head 1 arrives with `az_rel = +5°`, `el = 0°`, then head 1 enters ORIENT and reaches yaw 20° ± 2° and pitch 0° ± 2° within 0.6 s.
+- **AC-HEAD-02** Given head 1 IDLE, when `GazeLost` addressed to head 1 arrives with `az_rel = 0°`, `el = +5°`, then pitch reaches 10° ± 2° within 0.6 s (D1).
+- **AC-HEAD-03** Given head 1 in HOLD for 0.3 s, when `GazeLost` for another track addressed to head 1 arrives, then the target does not change and the new track is queued.
 - **AC-HEAD-04** Given head 1 in HOLD, when `hold_s` elapses with no queued target, then head 1 is back at neutral within 1.0 s.
-- **AC-HEAD-05** Given `GazeLost` for zone 0, then heads 1 and 2 do not change mode.
-- **AC-HEAD-06** Given head 1 holding track 7, when `TrackUpdated` shows track 7 owned by zone 2, then head 1 enters RETURN and head 2 does not change mode.
+- **AC-HEAD-05** Given `GazeLost` addressed to head 0, then heads 1 and 2 do not change mode.
+- **AC-HEAD-06** Given head 1 holding track 7, when copies of track 7's events addressed to other heads arrive (solo delivery, D14), then head 1 keeps holding; and when head 1's own `TrackUpdated` for track 7 carries a new bearing (the person walked into another zone), head 1 keeps following it.
 - **AC-HEAD-07** Given head 1 holding a target whose `az_rel` moves from +2° to +6° over 1 s, then within 0.5 s after the move ends head 1's yaw is 24° ± 3°.
 - **AC-HEAD-08** (property) For any event sequence, every `HeadCommand` satisfies the position, velocity and acceleration limits within 1e-6 rad tolerance.
 
@@ -73,18 +73,20 @@ Format: Given / When / Then. Test names use the ID, e.g. `test_AC_SM_03_blink_do
 
 ## Head assignment (D6)
 
-- **AC-ASSIGN-01** Given one person in zone 1, then head 1 is assigned and their events reach head 1 with `zone_id = 1`.
-- **AC-ASSIGN-02** Given two people in zone 1, then the second gets the nearest free head and their events carry that head's id.
-- **AC-ASSIGN-03** Given three people in one zone, then three distinct heads are assigned. A fourth person gets no head until a `TrackLost` frees one.
-- **AC-ASSIGN-04** Given an assigned person who moves into another zone, then they keep their head.
-- **AC-ASSIGN-05** Bearings are re-referenced to the assigned head's zone centre.
-- **AC-ASSIGN-06** (property) For any event sequence, every `GazeLost` yields at most one retargeted `GazeLost`, no two live tracks share a head, and every retargeted event names a valid head.
+- **AC-ASSIGN-01** Given one person, then their zone's head is their primary head and every other head also follows them (D14). All events reach all heads with `zone_id` set to the receiving head.
+- **AC-ASSIGN-02** Given a second person, then they get the nearest free head, the extra heads are released from the first person (`TrackReleased`), and each person keeps exactly one head.
+- **AC-ASSIGN-03** Given three people in one zone, then three distinct heads are assigned, one each. A fourth person gets no head until a `TrackLost` frees one.
+- **AC-ASSIGN-04** Given an assigned person who moves into another zone, then they keep their head(s).
+- **AC-ASSIGN-05** Bearings are re-referenced to the receiving head's zone centre.
+- **AC-ASSIGN-06** (property) For any event sequence, no head is owned by two live tracks at once (ownership changes only through `TrackReleased` or `TrackLost`), every retargeted event names a valid head, and with two or more headed tracks each owns exactly one head.
+- **AC-ASSIGN-07** Given one person who is looking away and a second person who then leaves, then the freed heads rejoin and each receives a `GazeLost` for the first person.
+- **AC-HEAD-11** (D14) Given a head staring at track 7, when `TrackReleased` for track 7 arrives, then the head goes to RETURN and does not wander on that person's behalf.
 
 ## Renderer
 
 - **AC-REN-01** Given a client connects, then its first message is `snapshot`, before any `head_state`.
 - **AC-REN-02** Given the client disconnects mid-run, then the perception loop keeps its frame rate and no exception escapes.
-- **AC-REN-03** Given `web/pose.js`, when yaw = 0.5 and pitch = 0.3, then `rotation.y = 0.5`, `rotation.x = -0.3`, `rotation.order = "YXZ"` (`node --test web/`).
+- **AC-REN-03** Given `web/pose.js`, when yaw = 0.5 and pitch = 0.3, then `rotation.y = 0.5`, `rotation.x = -0.3`, `rotation.order = "YXZ"` (`node --test "web/*.test.js"`).
 
 - **AC-REN-04** Given `render.camera_view = true` and a connected client, then binary JPEG messages arrive after the `snapshot`, at most `camera_view_fps` per second, and none are sent when no client is connected.
 - **AC-REN-05** Given `render.camera_view = true` and `render.allow_lan = true`, then the config is rejected.
